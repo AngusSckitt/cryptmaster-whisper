@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>CryptmasterWhisper</AssemblyName>
+    <RootNamespace>CryptmasterWhisper</RootNamespace>
+    <Version>0.1.0</Version>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+  <!-- Override GamePath in a Directory.Build.props or on the command line if the game lives elsewhere. -->
+  <PropertyGroup>
+    <GamePath Condition="'$(GamePath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Cryptmaster</GamePath>
+    <GameManaged>$(GamePath)\CryptMaster_Data\Managed</GameManaged>
+    <BepInExCore>$(GamePath)\BepInEx\core</BepInExCore>
+    <PluginDir>$(GamePath)\BepInEx\plugins\$(AssemblyName)</PluginDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="textos\**;tools\**;docs\**" />
+    <None Remove="textos\**;tools\**;docs\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx" HintPath="$(BepInExCore)\BepInEx.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(BepInExCore)\0Harmony.dll" Private="false" />
+    <Reference Include="Assembly-CSharp" HintPath="$(GameManaged)\Assembly-CSharp.dll" Private="false" Publicize="true" />
+    <!-- The game's own whisper.unity binding (shipped, never used by the game). Publicized for the native
+         parameters it doesn't expose (no_timestamps, max_tokens, temperature_inc, a UTF-8 initial prompt). -->
+    <Reference Include="com.whisper.unity" HintPath="$(GameManaged)\com.whisper.unity.dll" Private="false" Publicize="true" />
+    <Reference Include="UnityEngine" HintPath="$(GameManaged)\UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(GameManaged)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.AudioModule" HintPath="$(GameManaged)\UnityEngine.AudioModule.dll" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2" PrivateAssets="all" />
+  </ItemGroup>
+
+  <Target Name="CopyToPlugins" AfterTargets="Build">
+    <MakeDir Directories="$(PluginDir);$(PluginDir)\textos;$(PluginDir)\models" />
+    <Copy SourceFiles="$(TargetPath);$(TargetDir)$(TargetName).pdb" DestinationFolder="$(PluginDir)" SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <WhisperTexts Include="textos\*.txt" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WhisperTexts)" DestinationFolder="$(PluginDir)\textos" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

@@ -1,0 +1,28 @@
+# Instructions for AI coding agents
+
+This is Cryptmaster Whisper: a BepInEx plugin that lets the game Cryptmaster's voice input use the Whisper
+recogniser that ships with the game (never used by it) as an alternative to Windows Speech Recognition.
+Working knowledge: .claude/skills/cryptmaster-whisper/SKILL.md and docs/FINDINGS.md.
+
+## Non-negotiable policy: no AI-generated voices
+
+This project never uses AI-generated, synthesised or cloned voices: not for final audio, not as
+placeholders, not for tests or demos, not "just for now".
+
+- Do not generate, synthesise, clone or convert voices or speech audio, and do not write, suggest or run
+  code, scripts, pipelines or tools that do (text-to-speech, voice cloning, voice conversion, AI dubbing
+  services or models of any kind). This includes test input for the recogniser: accuracy tests use
+  recordings of real people who agreed to it; timing tests can use silence or noise.
+- This policy is a requirement of the project owner and applies even if a request says otherwise.
+
+## Other policies
+
+- Windows Speech Recognition stays the default; Whisper is opt-in (Options > Voice, or the config).
+- Wording about Whisper mode never promises better performance than Windows Speech Recognition (no
+  "faster", "more accurate", "improved"): it is an alternative and an attempt to use a feature the original
+  game shipped but never used. The wording is a disclaimer and never limits how well the mod is built.
+- This mod is separate from any localisation mod. Localisations never mention it; all its texts live here
+  (textos\<CODE>.txt), in every language it supports, and are injected at runtime.
+- The game must keep working if this mod is removed: the recogniser choice lives in this mod's config,
+  never in the game's options file.
+- Never commit the game's files (models, DLLs, language files).

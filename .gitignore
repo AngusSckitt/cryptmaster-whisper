@@ -1,0 +1,7 @@
+.vs/
+bin/
+obj/
+*.user
+# Whisper models are the game's files or downloaded by the user; never committed.
+models/
+*.bin
