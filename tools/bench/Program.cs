@@ -46,14 +46,14 @@ static class Program
         var rnd = new Random(1);
         float[] audio = Enumerable.Range(0, 16000 * 2).Select(_ => (float)(rnd.NextDouble() - 0.5) * 0.02f).ToArray();
         int threads = Environment.ProcessorCount;
-        foreach (string model in new[] { "ggml-model-whisper-tiny-q5_1.bin", "ggml-tiny.bin", "ggml-model-whisper-tiny.en-q8_0.bin" })
+        foreach (string model in args.Length > 0 ? args : new[] { "ggml-model-whisper-tiny-q5_1.bin", "ggml-tiny.bin", "ggml-model-whisper-tiny.en-q8_0.bin" })
         {
             var sw = Stopwatch.StartNew();
             // whisper_context_params is passed by value; on x64 a struct this size goes as a pointer to a copy.
-            IntPtr ctx = N.whisper_init_from_file_with_params(Path.Combine(game, "StreamingAssets", "Whisper", model), N.whisper_context_default_params_by_ref());
+            IntPtr ctx = N.whisper_init_from_file_with_params(Path.IsPathRooted(model) ? model : Path.Combine(game, "StreamingAssets", "Whisper", model), N.whisper_context_default_params_by_ref());
             long load = sw.ElapsedMilliseconds;
             if (ctx == IntPtr.Zero) { Console.WriteLine($"{model}: failed to load"); continue; }
-            foreach (int audioCtx in new[] { 0, 768, 256, 160 })
+            foreach (int audioCtx in new[] { 0, 256 })
             {
                 P p = Marshal.PtrToStructure<P>(N.whisper_full_default_params_by_ref(0));
                 p.n_threads = threads; p.no_context = 1; p.single_segment = 1; p.no_timestamps = 1; p.max_tokens = 10;
@@ -68,7 +68,7 @@ static class Program
                     times[run] = sw.ElapsedMilliseconds;
                 }
                 Array.Sort(times);
-                Console.WriteLine($"{model,-38} load {load,5} ms | audio_ctx {(audioCtx == 0 ? "1500 (30 s)" : audioCtx.ToString()),-11} | 2 s utterance: {times[1],5} ms (median), {threads} threads");
+                Console.WriteLine($"{Path.GetFileName(model),-38} load {load,5} ms | audio_ctx {(audioCtx == 0 ? "1500 (30 s)" : audioCtx.ToString()),-11} | 2 s utterance: {times[1],5} ms (median), {threads} threads");
             }
             N.whisper_free(ctx);
         }

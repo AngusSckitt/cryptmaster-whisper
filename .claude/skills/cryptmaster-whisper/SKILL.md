@@ -38,6 +38,11 @@ Whisper code) · `Texts.cs` (injects `textos\` into `allSentenceLookup`/`allOpti
   `MenuManager.speechBarColor` (0.5 idle, 1 pulse).
 - Every utterance is logged as `[voice] Whisper ...` or `[voice] Windows ...` in `BepInEx\LogOutput.log`,
   for comparing the two on the player's machine.
-- `tools\bench`: timing of the game's DLL and models (noise input).
+- `tools\bench`: timing of the game's DLL and models (noise input). `tools\replay`: scores recorded test
+  sessions (`tests\TEST_SCRIPT.md`, `Testing.RecordSessions`) per recogniser/model; recordings never in git.
+- Push to talk: `Listening.Mode = PushToTalk`; held state is `rewiredControl.GetButton("hear")` (fallback
+  Ctrl). Windows recogniser is labelled "default; vanilla" in every language.
+- Before publishing anything, check `docs\LICENSING.md` (never the game's files; CUDA only as an optional
+  separate download; models/binaries not in git).
 - To do: the Options > Voice row `[SPEECHENGINE]` (clone the `[SPEECHON]` GameOption; labels already in
   `textos\`), fuzzy matching to accepted words, real-speech accuracy tests.

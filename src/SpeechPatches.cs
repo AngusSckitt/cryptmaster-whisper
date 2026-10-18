@@ -33,6 +33,10 @@ namespace CryptmasterWhisper
             if (!Plugin.UseWhisper)
             {
                 SpeechCompare.SessionStarted();
+                if (Plugin.RecordSessions.Value && __instance.doesSystemSupportSpeech)
+                {
+                    VoiceSession.Instance.BeginRecordOnly(__instance);
+                }
                 return true;
             }
             if (!VoiceSession.Instance.Begin(__instance))
@@ -84,12 +88,20 @@ namespace CryptmasterWhisper
     [HarmonyPatch(typeof(SaveManager), nameof(SaveManager.DictationRecognizer_OnDictationHypothesis))]
     internal static class WindowsHypothesisLog
     {
-        private static void Prefix(string _text) => SpeechCompare.Log("partial", _text);
+        private static void Prefix(string _text)
+        {
+            SpeechCompare.Log("partial", _text);
+            VoiceSession.Instance.NoteWindowsText(_text, isFinal: false);
+        }
     }
 
     [HarmonyPatch(typeof(SaveManager), nameof(SaveManager.DictationRecognizer_OnDictationResult))]
     internal static class WindowsResultLog
     {
-        private static void Prefix(string _text) => SpeechCompare.Log("final", _text);
+        private static void Prefix(string _text)
+        {
+            SpeechCompare.Log("final", _text);
+            VoiceSession.Instance.NoteWindowsText(_text, isFinal: true);
+        }
     }
 }

@@ -35,7 +35,19 @@ namespace CryptmasterWhisper
             }
         }
 
-        internal static string ModelFor(string whisperLanguage) => whisperLanguage == "en" ? Plugin.ModelEnglish.Value : Plugin.ModelMultilingual.Value;
+        /// <summary>Model.PerLanguage (by game language code) first, then the English or multilingual default.</summary>
+        internal static string ModelFor(string gameLanguage, string whisperLanguage)
+        {
+            foreach (string pair in Plugin.ModelPerLanguage.Value.Split(';'))
+            {
+                string[] kv = pair.Split('=');
+                if (kv.Length == 2 && string.Equals(kv[0].Trim(), gameLanguage, StringComparison.OrdinalIgnoreCase) && kv[1].Trim() != "")
+                {
+                    return kv[1].Trim();
+                }
+            }
+            return whisperLanguage == "en" ? Plugin.ModelEnglish.Value : Plugin.ModelMultilingual.Value;
+        }
 
         internal static string ResolveModel(string name)
         {
@@ -87,9 +99,9 @@ namespace CryptmasterWhisper
         }
 
         /// <summary>Transcribes one utterance; blocking, call from a worker thread.</summary>
-        internal static unsafe Result Transcribe(float[] samples, int frequency, string language, string prompt, bool isFinal)
+        internal static unsafe Result Transcribe(float[] samples, int frequency, string model, string language, string prompt, bool isFinal)
         {
-            WhisperWrapper whisper = Get(ModelFor(language));
+            WhisperWrapper whisper = Get(model);
             if (whisper == null)
             {
                 return null;

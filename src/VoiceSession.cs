@@ -7,14 +7,15 @@ using UnityEngine;
 namespace CryptmasterWhisper
 {
     /// <summary>
-    /// One press of the game's Ear button in Whisper mode: records the microphone, finds where speech starts
-    /// and ends (energy against an adaptive noise floor), shows provisional results while the player speaks,
-    /// and hands the final text to the game exactly as Windows Speech Recognition does
-    /// (SaveManager.TranslateSpeechText), then ends the session.
+    /// One press of the game's Ear button. In Whisper mode: records the microphone, finds the utterance
+    /// (Automatic: energy against an adaptive noise floor; PushToTalk: while the button is held), shows
+    /// provisional results while the player speaks, and hands the final text to the game exactly as Windows
+    /// Speech Recognition does (SaveManager.TranslateSpeechText), then ends the session. In Windows mode with
+    /// Testing.RecordSessions on, only records alongside the Windows recogniser, for replaying tests.
     /// </summary>
     internal sealed class VoiceSession : MonoBehaviour
     {
-        private enum State { Off, Waiting, Speaking, Finishing }
+        private enum State { Off, Waiting, Speaking, Finishing, RecordOnly }
 
         internal static VoiceSession Instance { get; private set; }
         internal bool IsActive => _state != State.Off;
@@ -30,20 +31,29 @@ namespace CryptmasterWhisper
         private int _readPosition;
         private readonly List<float> _pending = new();
         private readonly List<float> _utterance = new();
+        private readonly List<float> _sessionAudio = new();
         private readonly Queue<float[]> _preRoll = new();
         private float _noiseFloor;
         private float _sessionStart, _speechStart, _lastVoice, _lastPartial, _speechEnd;
         private bool _busy;          // a recognition is running
         private bool _finalPending;  // speech ended while a preview was running
+        private bool _pushToTalk;
         private string _language;
+        private string _model;
         private string _prompt;
         private int _generation;
         private readonly ConcurrentQueue<(int generation, WhisperEngine.Result result)> _results = new();
+        private SessionRecorder.Entry _record;
 
         private void Awake() => Instance = this;
 
-        /// <summary>Starts listening; false if there is no microphone.</summary>
-        internal bool Begin(SaveManager save)
+        /// <summary>Starts a Whisper session; false if there is no microphone.</summary>
+        internal bool Begin(SaveManager save) => Start(save, recordOnly: false);
+
+        /// <summary>Records alongside a Windows Speech Recognition session (testing only).</summary>
+        internal void BeginRecordOnly(SaveManager save) => Start(save, recordOnly: true);
+
+        private bool Start(SaveManager save, bool recordOnly)
         {
             if (IsActive)
             {
@@ -56,22 +66,39 @@ namespace CryptmasterWhisper
             }
             Microphone.GetDeviceCaps(null, out int min, out int max);
             _frequency = max == 0 ? PreferredFrequency : Mathf.Clamp(PreferredFrequency, min, max);
-            _clip = Microphone.Start(null, true, 10, _frequency);
+            int bufferSeconds = Mathf.CeilToInt(Mathf.Max(Plugin.MaxHoldSeconds.Value, Plugin.MaxUtteranceSeconds.Value, Plugin.InitialSilenceSeconds.Value)) + 5;
+            _clip = Microphone.Start(null, true, Mathf.Clamp(bufferSeconds, 10, 60), _frequency);
             _save = save;
-            _state = State.Waiting;
             _generation++;
             _readPosition = 0;
             _pending.Clear();
             _utterance.Clear();
+            _sessionAudio.Clear();
             _preRoll.Clear();
             _noiseFloor = 0.002f;
             _busy = _finalPending = false;
-            _sessionStart = Time.unscaledTime;
+            _sessionStart = _speechStart = _lastVoice = _lastPartial = Time.unscaledTime;
             _language = GameLanguages.ToWhisper(save.language);
+            _model = WhisperEngine.ModelFor(save.language, _language);
+            _record = Plugin.RecordSessions.Value ? new SessionRecorder.Entry
+            {
+                Engine = recordOnly ? Plugin.EngineWindows : Plugin.EngineWhisper,
+                Mode = recordOnly ? "" : Plugin.Listening.Value,
+                GameLanguage = save.language,
+                Started = DateTime.Now,
+            } : null;
+            if (recordOnly)
+            {
+                _state = State.RecordOnly;
+                return true;
+            }
+            _pushToTalk = Plugin.PushToTalk;
             _prompt = Vocabulary.BuildPrompt(save.myGameManager);
-            SetEar(true, Plugin.InitialSilenceSeconds.Value);
+            // Push to talk: everything while the button is held is the utterance.
+            _state = _pushToTalk ? State.Speaking : State.Waiting;
+            SetEar(true, _pushToTalk ? Plugin.MaxHoldSeconds.Value : Plugin.InitialSilenceSeconds.Value);
             // Load the model in the background now, so the first utterance doesn't wait for it.
-            string model = WhisperEngine.ModelFor(_language);
+            string model = _model;
             Task.Run(() => WhisperEngine.Get(model));
             return true;
         }
@@ -82,12 +109,44 @@ namespace CryptmasterWhisper
             {
                 return;
             }
+            bool recordOnly = _state == State.RecordOnly;
+            if (recordOnly)
+            {
+                ReadMicrophone(); // the last few frames
+            }
             Microphone.End(null);
-            SetEar(false, 0f);
+            if (_record != null)
+            {
+                _record.Seconds = (Time.unscaledTime - _sessionStart);
+                SessionRecorder.Save(_record, _sessionAudio.ToArray(), _frequency);
+                _record = null;
+            }
+            if (!recordOnly)
+            {
+                SetEar(false, 0f);
+            }
             _state = State.Off;
             _save = null;
             _clip = null;
             _generation++; // results still being computed are dropped
+        }
+
+        /// <summary>Windows Speech Recognition's text for the session being recorded.</summary>
+        internal void NoteWindowsText(string text, bool isFinal)
+        {
+            if (_record == null)
+            {
+                return;
+            }
+            if (isFinal)
+            {
+                _record.Final = string.IsNullOrEmpty(_record.Final) ? text : _record.Final + " | " + text;
+                _record.LatencyMs = (int)((Time.unscaledTime - _sessionStart) * 1000f);
+            }
+            else
+            {
+                _record.Partials.Add(text);
+            }
         }
 
         private void SetEar(bool listening, float seconds)
@@ -108,6 +167,20 @@ namespace CryptmasterWhisper
             }
         }
 
+        private bool EarButtonHeld()
+        {
+            GameManager game = _save ? _save.myGameManager : null;
+            if (!game)
+            {
+                return false;
+            }
+            if (game.myTestBot && game.myTestBot.useRewired && game.rewiredControl != null)
+            {
+                return game.rewiredControl.GetButton("hear");
+            }
+            return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        }
+
         private void Update()
         {
             DeliverResults();
@@ -123,24 +196,35 @@ namespace CryptmasterWhisper
                     Plugin.Log.LogInfo("Whisper: no speech heard.");
                     _save.CloseDictationEngine(_doesDispose: false);
                     break;
-                case State.Speaking when now - _lastVoice >= Plugin.EndSilenceSeconds.Value || now - _speechStart >= Plugin.MaxUtteranceSeconds.Value:
-                    _state = State.Finishing;
-                    _speechEnd = now;
-                    Microphone.End(null); // nothing more to hear in this session
-                    if (_busy)
-                    {
-                        _finalPending = true;
-                    }
-                    else
-                    {
-                        Recognise(isFinal: true);
-                    }
+                case State.Speaking when _pushToTalk ? !EarButtonHeld() || now - _speechStart >= Plugin.MaxHoldSeconds.Value
+                                                     : now - _lastVoice >= Plugin.EndSilenceSeconds.Value || now - _speechStart >= Plugin.MaxUtteranceSeconds.Value:
+                    FinishUtterance(now);
                     break;
                 case State.Speaking when !_busy && Plugin.PartialIntervalSeconds.Value > 0f
                     && now - _lastPartial >= Plugin.PartialIntervalSeconds.Value && now - _speechStart > 0.3f:
                     _lastPartial = now;
                     Recognise(isFinal: false);
                     break;
+            }
+        }
+
+        private void FinishUtterance(float now)
+        {
+            _state = State.Finishing;
+            _speechEnd = now;
+            Microphone.End(null); // nothing more to hear in this session
+            if (_utterance.Count < _frequency * 0.15f)
+            {
+                Plugin.Log.LogInfo("Whisper: too short to recognise.");
+                _save.CloseDictationEngine(_doesDispose: false);
+            }
+            else if (_busy)
+            {
+                _finalPending = true;
+            }
+            else
+            {
+                Recognise(isFinal: true);
             }
         }
 
@@ -174,6 +258,14 @@ namespace CryptmasterWhisper
                 }
             }
             _readPosition = position;
+            if (_record != null)
+            {
+                _sessionAudio.AddRange(buffer);
+            }
+            if (_state == State.RecordOnly)
+            {
+                return;
+            }
             _pending.AddRange(buffer);
 
             int frameLength = Mathf.RoundToInt(_frequency * FrameSeconds);
@@ -208,7 +300,10 @@ namespace CryptmasterWhisper
                 {
                     _lastVoice = now;
                     SetEarColour(1f);
-                    _save.speechLastEndTime = now + Plugin.EndSilenceSeconds.Value + 0.5f;
+                    if (!_pushToTalk)
+                    {
+                        _save.speechLastEndTime = now + Plugin.EndSilenceSeconds.Value + 0.5f;
+                    }
                 }
                 return;
             }
@@ -236,14 +331,14 @@ namespace CryptmasterWhisper
         {
             float[] audio = _utterance.ToArray();
             int frequency = _frequency, generation = _generation;
-            string language = _language, prompt = _prompt;
+            string language = _language, prompt = _prompt, model = _model;
             _busy = true;
             Task.Run(() =>
             {
                 WhisperEngine.Result result = null;
                 try
                 {
-                    result = WhisperEngine.Transcribe(audio, frequency, language, prompt, isFinal);
+                    result = WhisperEngine.Transcribe(audio, frequency, model, language, prompt, isFinal);
                 }
                 catch (Exception e)
                 {
@@ -264,10 +359,25 @@ namespace CryptmasterWhisper
                 _busy = false;
                 WhisperEngine.Result result = item.result;
                 string text = Vocabulary.Clean(result.Text, _save);
+                int latency = (int)((Time.unscaledTime - _speechEnd) * 1000f);
                 if (Plugin.CompareLog.Value)
                 {
-                    string latency = result.IsFinal ? $", {(Time.unscaledTime - _speechEnd) * 1000f:0} ms after speech ended" : "";
-                    Plugin.Log.LogInfo($"[voice] Whisper {(result.IsFinal ? "final" : "partial")}: '{result.Text.Trim()}' -> '{text}' ({result.AudioSeconds:0.0} s audio, {result.InferenceMs} ms inference{latency}, {_language})");
+                    string after = result.IsFinal ? $", {latency} ms after speech ended" : "";
+                    Plugin.Log.LogInfo($"[voice] Whisper {(result.IsFinal ? "final" : "partial")}: '{result.Text.Trim()}' -> '{text}' ({result.AudioSeconds:0.0} s audio, {result.InferenceMs} ms inference{after}, {_language})");
+                }
+                if (_record != null)
+                {
+                    if (result.IsFinal)
+                    {
+                        _record.Final = text;
+                        _record.Raw = result.Text.Trim();
+                        _record.LatencyMs = latency;
+                        _record.InferenceMs = (int)result.InferenceMs;
+                    }
+                    else
+                    {
+                        _record.Partials.Add(text);
+                    }
                 }
                 if (text != "")
                 {

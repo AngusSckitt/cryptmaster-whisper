@@ -19,7 +19,15 @@ whisper.cpp models (e.g. `ggml-base.bin`) can go in the plugin's `models` folder
 config. Larger models are slower.
 
 The game's language decides Whisper's language, so the mod works with the game's own languages and with
-localisation mods.
+localisation mods. `Model.PerLanguage` can pick a different model per language.
+
+Listening (`Listening.Mode`): **Automatic** (press the Ear button and speak; the end of speech is detected) or
+**PushToTalk** (hold the Ear button while speaking; nothing is heard otherwise, good for noisy rooms).
+
+If Whisper misbehaves, set the recogniser back to **Windows** (default; vanilla), the game's own.
+
+Testing: `tests\TEST_SCRIPT.md` with `Testing.RecordSessions = true`, then `tools\replay`.
+Publishing: see [docs/LICENSING.md](docs/LICENSING.md) for what may go in the repository and in packages.
 
 ## How it works and what was changed
 

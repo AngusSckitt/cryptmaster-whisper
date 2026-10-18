@@ -26,6 +26,7 @@ namespace CryptmasterWhisper
         internal static ConfigEntry<string> ModelEnglish;
         internal static ConfigEntry<string> ModelMultilingual;
         internal static ConfigEntry<string> LanguageMap;
+        internal static ConfigEntry<string> ModelPerLanguage;
         internal static ConfigEntry<int> Threads;
         internal static ConfigEntry<float> InitialSilenceSeconds;
         internal static ConfigEntry<float> EndSilenceSeconds;
@@ -35,10 +36,16 @@ namespace CryptmasterWhisper
         internal static ConfigEntry<int> MinAudioContext;
         internal static ConfigEntry<bool> VocabularyPrompt;
         internal static ConfigEntry<bool> CompareLog;
+        internal static ConfigEntry<string> Listening;
+        internal static ConfigEntry<float> MaxHoldSeconds;
+        internal static ConfigEntry<bool> RecordSessions;
 
         internal static bool UseWhisper => Engine.Value == EngineWhisper;
+        internal static bool PushToTalk => Listening.Value == ListenPushToTalk;
         internal const string EngineWindows = "Windows";
         internal const string EngineWhisper = "Whisper";
+        internal const string ListenAutomatic = "Automatic";
+        internal const string ListenPushToTalk = "PushToTalk";
 
         private void Awake()
         {
@@ -50,12 +57,14 @@ namespace CryptmasterWhisper
             Folder = Path.GetDirectoryName(Info.Location);
 
             Engine = Config.Bind("General", "Engine", EngineWindows,
-                new ConfigDescription("Voice recogniser: Windows (the game's native Windows Speech Recognition) or Whisper. Also switchable in Options > Voice.",
+                new ConfigDescription("Voice recogniser: Windows (default; vanilla: the game's own Windows Speech Recognition, the one to go back to if Whisper misbehaves) or Whisper.",
                     new AcceptableValueList<string>(EngineWindows, EngineWhisper)));
             ModelEnglish = Config.Bind("Model", "English", "ggml-model-whisper-tiny.en-q8_0.bin",
                 "Model for English. A file name in this plugin's models folder or the game's StreamingAssets\\Whisper folder, or a full path.");
             ModelMultilingual = Config.Bind("Model", "Multilingual", "ggml-tiny.bin",
                 "Model for every other language (must be a multilingual model). Larger models (e.g. ggml-base.bin) placed in the models folder are slower but may recognise better.");
+            ModelPerLanguage = Config.Bind("Model", "PerLanguage", "",
+                "Model per game language code, overriding the two above, e.g. 'POR=ggml-small-q5_1.bin;SPA=ggml-base-q5_1.bin'. Works with the game's own languages and any localisation mod's code.");
             LanguageMap = Config.Bind("Model", "LanguageMap", "",
                 "Extra game-language-code=whisper-language pairs, e.g. 'DEU=de;FRA=fr'. Common codes are built in.");
             Threads = Config.Bind("Performance", "Threads", 0, "CPU threads for recognition (0 = automatic: one less than the number of cores, at most 4).");
@@ -68,6 +77,12 @@ namespace CryptmasterWhisper
                 "Smallest encoder window (50 per second of audio; Whisper's default is 1500 = 30 s). Smaller is faster; too small can hurt recognition.");
             VocabularyPrompt = Config.Bind("Advanced", "VocabularyPrompt", true, "Hint Whisper with the party's names and current skill words.");
             CompareLog = Config.Bind("Advanced", "CompareLog", true, "Log every recognised utterance with timings, for both recognisers, to compare them.");
+            Listening = Config.Bind("Listening", "Mode", ListenAutomatic,
+                new ConfigDescription("Whisper only. Automatic: press the Ear button, speak, and the end of speech is detected. PushToTalk: hold the Ear button while speaking; nothing is heard otherwise (useful in noisy rooms).",
+                    new AcceptableValueList<string>(ListenAutomatic, ListenPushToTalk)));
+            MaxHoldSeconds = Config.Bind("Listening", "MaxHoldSeconds", 10f, "Push to talk: longest recording while the button is held.");
+            RecordSessions = Config.Bind("Testing", "RecordSessions", false,
+                "Saves every Ear-button session (either recogniser) as a WAV plus what was recognised, in this plugin's recordings folder, so tests can be replayed through other models (tools\\replay). Recordings stay on this computer.");
 
             Texts.Load(Path.Combine(Folder, "textos"));
             new Harmony(PluginGuid).PatchAll(typeof(Plugin).Assembly);

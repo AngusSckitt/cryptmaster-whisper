@@ -5,3 +5,6 @@ obj/
 # Whisper models are the game's files or downloaded by the user; never committed.
 models/
 *.bin
+# Test recordings are real people's voices: never committed.
+recordings/
+*.wav

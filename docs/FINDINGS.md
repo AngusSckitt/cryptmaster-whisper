@@ -75,6 +75,38 @@ timing only. The game was not running, so in-game times will be higher. Reproduc
 - **WSR availability**: in Whisper mode voice input is offered wherever there is a microphone, even when
   Windows' online speech is off.
 
+- **Push to talk** (`Listening.Mode = PushToTalk`, Whisper only): the utterance is exactly what's said while
+  the Ear button is held. Nothing is heard otherwise, so noise can't trigger it.
+- **Per-language models** (`Model.PerLanguage`, by game language code, e.g. `POR=ggml-small-q5_1.bin`),
+  for the game's own languages and any localisation mod's code.
+- **Test recording** (`Testing.RecordSessions`): every session as a WAV plus what was recognised, also in
+  Windows mode (recorded alongside WSR), replayed offline by `tools\replay` against `tests\TEST_SCRIPT.md`.
+
+## Bigger models and GPUs (facts; same PC with an RTX 4070 SUPER; 2 s noise, greedy, window 256)
+
+| Model (size) | Game's DLL, CPU | whisper.cpp b5454, CPU | whisper.cpp b5454, CUDA |
+|---|---|---|---|
+| tiny (74 MB, the game's) | ~100 ms | 127 ms | 180 ms |
+| base q5_1 (57 MB) | 241 ms | 249 ms | 190 ms |
+| small q5_1 (181 MB) | 857 ms | 814 ms | 249 ms |
+| large-v3-turbo q5_0 (547 MB) | 4157 ms | 3560 ms | 169 ms |
+
+The b5454 timings are whole command-line runs minus model load, so each includes CUDA start-up; a loaded
+model in the mod would be faster. Large-v3-turbo is OpenAI's most recent model; on a GPU it costs about
+what tiny costs on a CPU.
+
+- The only language-specific model shipped is `tiny.en` (English). Officially, Whisper's language-specific
+  models are English-only (`.en`, up to medium). Spanish and Portuguese only exist in the multilingual
+  models, where they are among Whisper's best-supported languages. Community fine-tunes for Portuguese
+  and Spanish exist (mostly Hugging Face format, convertible to ggml). They are tuned for general
+  dictation, not single invented words, and each has its own licence.
+- Expected order of benefit (to be confirmed by replaying recordings): a bigger multilingual model (base on
+  CPU, turbo on GPU) first, then matching to accepted words, then fine-tunes.
+- Using a GPU requires replacing the game's 2023 library with a current whisper.cpp build plus a new binding
+  (its C structs changed). CUDA covers NVIDIA only and its runtime is proprietary (see LICENSING.md).
+  Vulkan covers AMD, Intel and NVIDIA with MIT-only files, but has no official Windows build, so it would
+  be built here.
+
 ## Open questions (to test with real speech)
 
 - How accurate tiny is on the game's words in each language, compared with Windows (the `[voice]` lines in

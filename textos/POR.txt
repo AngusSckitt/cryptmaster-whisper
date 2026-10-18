@@ -2,4 +2,5 @@
 # A localização PT-BR nunca menciona o Whisper; este texto substitui o aviso dela só com este mod presente.
 # Tom: o Whisper é uma alternativa/tentativa; nunca prometer desempenho melhor que o Reconhecimento de Fala do Windows.
 [SENTENCELOOKUP]/speechwarning01/AVISO: O modo de voz é uma opção de acessibilidade e desativa alguns recursos e conteúdos do jogo. Os requisitos a seguir são os do Reconhecimento de Fala do Windows, a opção nativa do jogo: um microfone, Windows 10 ou superior e o reconhecimento de fala online ativado no Windows (Configurações > Privacidade > Fala). O modo Whisper, alternativo, tenta implementar um recurso que já estava presente no jogo original, mas nunca foi usado. Aperte o botão da "Orelha" no jogo para detectar a fala.
-[MENUOPTION]/[SPEECHENGINE]/Reconhecimento de Fala/Windows,Whisper
+[MENUOPTION]/[SPEECHENGINE]/Reconhecimento de Fala/Windows (padrão; original),Whisper
+[MENUOPTION]/[SPEECHLISTEN]/Escuta do Whisper/Automática,Segurar para Falar
