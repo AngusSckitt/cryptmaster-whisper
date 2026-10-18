@@ -104,8 +104,13 @@ what tiny costs on a CPU.
   CPU, turbo on GPU) first, then matching to accepted words, then fine-tunes.
 - Using a GPU requires replacing the game's 2023 library with a current whisper.cpp build plus a new binding
   (its C structs changed). CUDA covers NVIDIA only and its runtime is proprietary (see LICENSING.md).
-  Vulkan covers AMD, Intel and NVIDIA with MIT-only files, but has no official Windows build, so it would
-  be built here.
+  Vulkan covers AMD, Intel and NVIDIA with MIT-only files. It has no official Windows build, so
+  `tools\build-whisper-vulkan.ps1` builds one (v1.9.5).
+
+Vulkan build (v1.9.5, same PC, same test): tiny 90 ms, base 112 ms, small 139 ms, large-v3-turbo 134 ms,
+all on the RTX 4070 SUPER. That's faster than CUDA here, from a 43 MB GPU backend (`ggml-vulkan.dll`)
+against 545 MB for `ggml-cuda.dll` plus about 470 MB of NVIDIA runtime. Vulkan is the GPU path. It is
+untested on AMD so far; an AMD tester should run the S1 session with it.
 
 ## Open questions (to test with real speech)
 
