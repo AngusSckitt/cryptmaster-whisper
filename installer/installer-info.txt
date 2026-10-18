@@ -1,0 +1,21 @@
+Cryptmaster Whisper
+
+Adds Whisper as an optional voice recogniser for Cryptmaster's voice input. Windows Speech Recognition,
+the game's own (default; vanilla), stays the default: switch to Whisper in BepInEx\config\
+cryptmaster.whisper.cfg (Engine = Whisper), and back to Windows if Whisper misbehaves.
+
+Whisper mode is an attempt to use a feature the original game shipped but never used. It makes no
+promise of better recognition than Windows Speech Recognition.
+
+What this installs:
+- the mod, into BepInEx\plugins\CryptmasterWhisper;
+- BepInEx 5 (the mod loader), if it isn't installed yet;
+- whisper.cpp built with Vulkan (works on AMD, Intel and NVIDIA GPUs, and on the CPU without one);
+- optionally, a larger Whisper model, downloaded from its official source;
+- optionally, on PCs with an NVIDIA GPU, a CUDA backend, downloaded from its official source;
+- the Microsoft Visual C++ runtime, downloaded from Microsoft, only if it's missing.
+
+Downloads are checked against fixed SHA-256 hashes. Nothing is sent anywhere: recognition runs entirely
+on your computer.
+
+Uninstalling removes the mod's folder. BepInEx and the mod's settings stay, since other mods may use them.

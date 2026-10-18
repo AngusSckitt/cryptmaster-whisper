@@ -38,8 +38,48 @@ static class Program
     delegate void Log(int level, IntPtr text, IntPtr ud);
     static Log _quiet = (l, t, u) => { };
 
+    // --native <folder with cmwhisper.dll> [--cpu] model...: the mod's NativeBackend path, model loaded once.
+    [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)] static extern IntPtr LoadLibraryExW(string path, IntPtr file, uint flags);
+    [DllImport("kernel32", CharSet = CharSet.Ansi)] static extern IntPtr GetProcAddress(IntPtr module, string name);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate IntPtr CmwInit(byte[] model, int useGpu);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int CmwTranscribe(IntPtr ctx, float[] s, int n, byte[] lang, byte[] prompt, int audioCtx, int threads, int maxTokens, float tempInc, byte[] output, int size, out float noSpeech);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void CmwLogFn(int level, IntPtr text);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void CmwSetLog(CmwLogFn fn);
+    static CmwLogFn _cmwLog = (l, t) => { string s = Marshal.PtrToStringAnsi(t); if (s != null && (s.Contains("ggml_vulkan: 0") || s.Contains("CUDA0") || s.Contains("load_backend"))) Console.Error.Write("  " + s); };
+    static byte[] Z(string s) { var b = System.Text.Encoding.UTF8.GetBytes(s); Array.Resize(ref b, b.Length + 1); return b; }
+
+    static void NativeBench(string folder, bool cpu, string[] models, float[] audio)
+    {
+        IntPtr m = LoadLibraryExW(Path.Combine(folder, "cmwhisper.dll"), IntPtr.Zero, 0x8);
+        if (m == IntPtr.Zero) { Console.WriteLine($"cannot load cmwhisper.dll from {folder} (error {Marshal.GetLastWin32Error()})"); return; }
+        T F<T>(string n) => Marshal.GetDelegateForFunctionPointer<T>(GetProcAddress(m, n));
+        F<CmwSetLog>("cmw_set_log")(_cmwLog);
+        var init = F<CmwInit>("cmw_init"); var transcribe = F<CmwTranscribe>("cmw_transcribe");
+        foreach (string model in models)
+        {
+            var sw = Stopwatch.StartNew();
+            IntPtr ctx = init(Z(model), cpu ? 0 : 1);
+            long load = sw.ElapsedMilliseconds;
+            if (ctx == IntPtr.Zero) { Console.WriteLine($"{Path.GetFileName(model)}: failed to load"); continue; }
+            var output = new byte[4096];
+            transcribe(ctx, audio, audio.Length, Z("pt"), Z(""), 256, 4, 24, 0f, output, output.Length, out _); // warm-up
+            var times = new long[5];
+            for (int i = 0; i < times.Length; i++) { sw.Restart(); transcribe(ctx, audio, audio.Length, Z("pt"), Z(""), 256, 4, 24, 0f, output, output.Length, out _); times[i] = sw.ElapsedMilliseconds; }
+            Array.Sort(times);
+            Console.WriteLine($"{Path.GetFileName(folder.TrimEnd('\\')),-34} {Path.GetFileName(model),-30} load {load,5} ms | 2 s utterance: {times[2],5} ms (median of 5, warm){(cpu ? " CPU" : "")}");
+        }
+    }
+
     static unsafe void Main(string[] args)
     {
+        if (args.Length > 1 && args[0] == "--native")
+        {
+            bool cpu = args.Contains("--cpu");
+            var r = new Random(1);
+            float[] noise = Enumerable.Range(0, 16000 * 2).Select(_ => (float)(r.NextDouble() - 0.5) * 0.02f).ToArray();
+            NativeBench(args[1], cpu, args.Skip(2).Where(a => a != "--cpu").ToArray(), noise);
+            return;
+        }
         string game = @"C:\Program Files (x86)\Steam\steamapps\common\Cryptmaster\CryptMaster_Data";
         N.SetDllDirectory(Path.Combine(game, @"Plugins\x86_64"));
         N.whisper_log_set(Marshal.GetFunctionPointerForDelegate(_quiet), IntPtr.Zero);

@@ -8,3 +8,5 @@ models/
 # Test recordings are real people's voices: never committed.
 recordings/
 *.wav
+# Release builds (tools\package.ps1).
+dist/

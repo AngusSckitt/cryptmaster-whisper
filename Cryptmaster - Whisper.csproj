@@ -19,6 +19,8 @@
     <GameManaged>$(GamePath)\CryptMaster_Data\Managed</GameManaged>
     <BepInExCore>$(GamePath)\BepInEx\core</BepInExCore>
     <PluginDir>$(GamePath)\BepInEx\plugins\$(AssemblyName)</PluginDir>
+    <!-- Output of tools\build-whisper-vulkan.ps1 (default work folder); deployed to native\vulkan when present. -->
+    <NativeVulkanDir Condition="'$(NativeVulkanDir)' == ''">$(TEMP)\cryptmaster-whisper-build\out</NativeVulkanDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -51,6 +53,10 @@
       <WhisperTexts Include="textos\*.txt" />
     </ItemGroup>
     <Copy SourceFiles="@(WhisperTexts)" DestinationFolder="$(PluginDir)\textos" SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <NativeVulkan Include="$(NativeVulkanDir)\*.dll;$(NativeVulkanDir)\LICENSE-whisper.cpp.txt" Exclude="$(NativeVulkanDir)\parakeet.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NativeVulkan)" DestinationFolder="$(PluginDir)\native\vulkan" SkipUnchangedFiles="true" Condition="Exists('$(NativeVulkanDir)\cmwhisper.dll')" />
   </Target>
 
 </Project>

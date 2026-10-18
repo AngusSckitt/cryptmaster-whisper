@@ -28,6 +28,7 @@ namespace CryptmasterWhisper
         internal static ConfigEntry<string> LanguageMap;
         internal static ConfigEntry<string> ModelPerLanguage;
         internal static ConfigEntry<int> Threads;
+        internal static ConfigEntry<string> Backend;
         internal static ConfigEntry<float> InitialSilenceSeconds;
         internal static ConfigEntry<float> EndSilenceSeconds;
         internal static ConfigEntry<float> MaxUtteranceSeconds;
@@ -44,6 +45,7 @@ namespace CryptmasterWhisper
         internal static bool PushToTalk => Listening.Value == ListenPushToTalk;
         internal const string EngineWindows = "Windows";
         internal const string EngineWhisper = "Whisper";
+        internal const string BackendAuto = "Auto", BackendVulkan = "Vulkan", BackendCuda = "CUDA", BackendCpu = "CPU", BackendGame = "Game";
         internal const string ListenAutomatic = "Automatic";
         internal const string ListenPushToTalk = "PushToTalk";
 
@@ -67,6 +69,9 @@ namespace CryptmasterWhisper
                 "Model per game language code, overriding the two above, e.g. 'POR=ggml-small-q5_1.bin;SPA=ggml-base-q5_1.bin'. Works with the game's own languages and any localisation mod's code.");
             LanguageMap = Config.Bind("Model", "LanguageMap", "",
                 "Extra game-language-code=whisper-language pairs, e.g. 'DEU=de;FRA=fr'. Common codes are built in.");
+            Backend = Config.Bind("Performance", "Backend", BackendAuto,
+                new ConfigDescription("Auto: the GPU-capable whisper.cpp in native\\vulkan if installed (AMD, Intel or NVIDIA GPU; CPU otherwise), else the game's own library. CUDA: native\\cuda (NVIDIA, optional install). CPU: native\\vulkan without the GPU. Game: always the game's own library (CPU).",
+                    new AcceptableValueList<string>(BackendAuto, BackendVulkan, BackendCuda, BackendCpu, BackendGame)));
             Threads = Config.Bind("Performance", "Threads", 0, "CPU threads for recognition (0 = automatic: one less than the number of cores, at most 4).");
             InitialSilenceSeconds = Config.Bind("Listening", "InitialSilenceSeconds", 4f, "How long to wait for speech after pressing the Ear button.");
             EndSilenceSeconds = Config.Bind("Listening", "EndSilenceSeconds", 0.6f, "Silence that ends an utterance.");

@@ -363,7 +363,7 @@ namespace CryptmasterWhisper
                 if (Plugin.CompareLog.Value)
                 {
                     string after = result.IsFinal ? $", {latency} ms after speech ended" : "";
-                    Plugin.Log.LogInfo($"[voice] Whisper {(result.IsFinal ? "final" : "partial")}: '{result.Text.Trim()}' -> '{text}' ({result.AudioSeconds:0.0} s audio, {result.InferenceMs} ms inference{after}, {_language})");
+                    Plugin.Log.LogInfo($"[voice] Whisper {(result.IsFinal ? "final" : "partial")}: '{result.Text.Trim()}' -> '{text}' ({result.AudioSeconds:0.0} s audio, {result.InferenceMs} ms inference{after}, {_language}, {WhisperEngine.BackendName}{(result.NoSpeech > 0 ? $", no-speech {result.NoSpeech:0.00}" : "")})");
                 }
                 if (_record != null)
                 {

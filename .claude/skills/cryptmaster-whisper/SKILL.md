@@ -44,5 +44,12 @@ Whisper code) · `Texts.cs` (injects `textos\` into `allSentenceLookup`/`allOpti
   Ctrl). Windows recogniser is labelled "default; vanilla" in every language.
 - Before publishing anything, check `docs\LICENSING.md` (never the game's files; CUDA only as an optional
   separate download; models/binaries not in git).
+- Native backends: `native\cmwhisper.cpp` (our C shim, built with whisper.cpp by
+  `tools\build-whisper-vulkan.ps1`; uses a `subst` drive for the 260-char path limit) → `src\NativeBackend.cs`
+  loads `plugin\native\<vulkan|cuda>\cmwhisper.dll` by full path; the shim pre-loads CUDA runtimes from its
+  own folder (the game's exe is elsewhere). `Performance.Backend` = Auto/Vulkan/CUDA/CPU/Game; the game's
+  library is the fallback. Measure fairly with `tools\bench --native <folder>` (in-process, warm).
+- Releases: `tools\package.ps1` → `dist\` installer (Inno Setup, `installer\CryptmasterWhisper.iss`) + zip.
+  Downloads (models, CUDA, VC++ runtime) are pinned by URL + SHA-256; CUDA only offered on NVIDIA PCs.
 - To do: the Options > Voice row `[SPEECHENGINE]` (clone the `[SPEECHON]` GameOption; labels already in
   `textos\`), fuzzy matching to accepted words, real-speech accuracy tests.

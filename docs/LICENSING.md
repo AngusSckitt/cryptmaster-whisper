@@ -21,10 +21,12 @@ Notes:
 - GPL and proprietary libraries: the mod doesn't link to CUDA; it would load whisper.cpp (MIT), which loads its
   GPU backend. Keeping the CUDA files in a separate optional download keeps the main package clean. Vulkan
   avoids the question entirely, and works on AMD, Intel and NVIDIA.
-- If CUDA is ever offered: an installer could download NVIDIA's own component archives
-  (`developer.download.nvidia.com/compute/cuda/redist/`, listed with SHA-256 in `redistrib_<version>.json`)
-  on the player's machine, after showing NVIDIA's licence. The mod's packages then never contain NVIDIA
-  files. Costs: about 470 MB download, a dependency on NVIDIA's URLs (pin versions and checksums), and an
-  installer to maintain. Since the Vulkan build is faster on the one NVIDIA card tested, CUDA isn't planned.
+- CUDA is offered by the installer (`installer\CryptmasterWhisper.iss`) only on PCs with an NVIDIA GPU, as
+  an unticked option with a disclaimer page. It downloads the official whisper.cpp CUDA release (pinned URL
+  and SHA-256) onto the player's computer and adds the mod's own `cmwhisper.dll`. The installer and the zip
+  never contain NVIDIA files. Larger models are downloaded the same way, from a pinned Hugging Face revision.
+  If that release ever disappears, NVIDIA's own component archives
+  (`developer.download.nvidia.com/compute/cuda/redist/`, SHA-256 in `redistrib_<version>.json`) are the
+  fallback; that would also need our own CUDA build of `ggml-cuda.dll`.
 - Recordings stay in `BepInEx\plugins\CryptmasterWhisper\recordings\` on the tester's computer and are
   git-ignored here.

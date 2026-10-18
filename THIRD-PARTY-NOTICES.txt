@@ -1,0 +1,21 @@
+Cryptmaster Whisper is licensed under the GNU General Public License v3 (see LICENSE).
+It is distributed together with, or downloads, the following third-party components.
+
+whisper.cpp (native\vulkan, native\cuda): MIT License, Copyright (c) 2023-2026 The ggml authors.
+  https://github.com/ggml-org/whisper.cpp ; full text in native\vulkan\LICENSE-whisper.cpp.txt
+
+OpenAI Whisper models (optional downloads into models\, ggml conversions from
+  https://huggingface.co/ggerganov/whisper.cpp): MIT License, Copyright (c) 2022 OpenAI.
+
+BepInEx 5 (installed by the installer if missing): GNU Lesser General Public License v2.1.
+  https://github.com/BepInEx/BepInEx ; source and licence available there.
+
+NVIDIA CUDA runtime (optional, native\cuda, downloaded by the installer from the official whisper.cpp
+  release, never distributed by this project): NVIDIA CUDA Toolkit End User License Agreement.
+  https://docs.nvidia.com/cuda/eula/
+
+Microsoft Visual C++ Redistributable (downloaded from Microsoft by the installer only if missing):
+  Microsoft Software License Terms.
+
+Not included and never redistributed: the game's own files (its whisper library, its models, its text).
+The mod uses them from the player's Cryptmaster installation.

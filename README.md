@@ -9,10 +9,19 @@ is still to come (switch with the config for now).
 
 ## Install
 
-1. Install BepInEx 5 (x64) into the game folder.
-2. Copy the `CryptmasterWhisper` folder into `BepInEx\plugins`.
-3. Start the game once, then set `Engine = Whisper` in `BepInEx\config\cryptmaster.whisper.cfg`.
-4. Turn Voice Input on in Options and press the Ear button in game to speak.
+**Installer** (`CryptmasterWhisper-Setup-<version>.exe`): finds the game through Steam and installs BepInEx
+if needed. It can download a larger Whisper model and, on NVIDIA PCs, an optional CUDA backend, all from
+their official sources.
+
+**Manual** (`CryptmasterWhisper-<version>.zip`): with BepInEx 5 (x64) installed, unzip into the game folder.
+
+Then set `Engine = Whisper` in `BepInEx\config\cryptmaster.whisper.cfg`, turn Voice Input on in Options,
+and press the Ear button (Ctrl) in game to speak.
+
+Recognition runs on the GPU when there is one (Vulkan: AMD, Intel or NVIDIA), otherwise on the CPU.
+`Performance.Backend` chooses: Auto, Vulkan, CUDA, CPU, or Game (the game's own 2023 library).
+
+Building releases: `tools\build-whisper-vulkan.ps1`, then `tools\package.ps1` (needs Inno Setup 6).
 
 The mod uses the models the game already ships (`CryptMaster_Data\StreamingAssets\Whisper`). Other
 whisper.cpp models (e.g. `ggml-base.bin`) can go in the plugin's `models` folder and be selected in the

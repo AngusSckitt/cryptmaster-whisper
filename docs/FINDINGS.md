@@ -107,10 +107,24 @@ what tiny costs on a CPU.
   Vulkan covers AMD, Intel and NVIDIA with MIT-only files. It has no official Windows build, so
   `tools\build-whisper-vulkan.ps1` builds one (v1.9.5).
 
-Vulkan build (v1.9.5, same PC, same test): tiny 90 ms, base 112 ms, small 139 ms, large-v3-turbo 134 ms,
-all on the RTX 4070 SUPER. That's faster than CUDA here, from a 43 MB GPU backend (`ggml-vulkan.dll`)
-against 545 MB for `ggml-cuda.dll` plus about 470 MB of NVIDIA runtime. Vulkan is the GPU path. It is
-untested on AMD so far; an AMD tester should run the S1 session with it.
+The table above measures whole command-line runs, so every GPU figure includes the backend's start-up.
+Measured properly (the mod's way: one process, model loaded once, warm, median of 5, `tools\bench --native`):
+
+| Model | Vulkan (our build) | CUDA (official b5454 + our shim) | CPU (our build) |
+|---|---|---|---|
+| tiny | 53 ms | 63 ms | 148 ms |
+| base q5_1 | 63 ms | 27 ms | 189 ms |
+| small q5_1 | 47 ms | 21 ms | 648 ms |
+| large-v3-turbo q5_0 | 30 ms | 26–33 ms | 3146 ms |
+
+Vulkan and CUDA are about even (an earlier conclusion that Vulkan was clearly faster came from counting
+CUDA's start-up). Both are far below what a player notices. Vulkan is the default GPU path: one 43 MB
+backend (`ggml-vulkan.dll`) for AMD, Intel and NVIDIA, MIT-only. CUDA is an installer option for NVIDIA
+cards (545 MB `ggml-cuda.dll` plus about 470 MB of NVIDIA runtime). Untested on AMD so far; an AMD
+tester should run the S1 session with it.
+
+In game: the Vulkan build loads in the game's own process alongside its rendering. large-v3-turbo loaded
+in 1.8 s on the RTX 4070 SUPER, and a silent session ended with "no speech heard", with no invented text.
 
 ## Open questions (to test with real speech)
 

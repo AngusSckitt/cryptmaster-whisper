@@ -5,7 +5,7 @@
 # Needs: Visual Studio 2022 C++ build tools, CMake, the Vulkan SDK (winget: Microsoft.VisualStudio.2022.BuildTools,
 # Kitware.CMake, KhronosGroup.VulkanSDK), Git.
 # Usage: powershell -File tools\build-whisper-vulkan.ps1 [-Version v1.9.5] [-Work C:\path\to\workdir]
-# Output: <Work>\out\ (whisper.dll, ggml*.dll, LICENSE). The work folder is mapped to a drive letter while
+# Output: <Work>\out\ (cmwhisper.dll, the mod's shim; whisper.dll, ggml*.dll, LICENSE). The work folder is mapped to a drive letter while
 # building, because the shader generator's nested build fails past Windows' 260-character path limit.
 param([string]$Version = 'v1.9.5', [string]$Work = "$env:TEMP\cryptmaster-whisper-build")
 $ErrorActionPreference = 'Stop'
@@ -18,7 +18,8 @@ subst $drive $Work
 try {
     $src = "$drive\src"; $build = "$drive\build"; $out = "$drive\out"
     if (-not (Test-Path $src)) { git clone --depth 1 --branch $Version https://github.com/ggml-org/whisper.cpp.git $src }
-    cmake -S $src -B $build -G 'Visual Studio 17 2022' -A x64 -DGGML_VULKAN=ON -DGGML_NATIVE=OFF -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON `
+    $native = Join-Path (Split-Path -Parent $PSScriptRoot) 'native'
+    cmake -S $native -B $build -DWHISPER_SRC="$src" -G 'Visual Studio 17 2022' -A x64 -DGGML_VULKAN=ON -DGGML_NATIVE=OFF -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON `
         -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
     if ($LASTEXITCODE) { throw 'cmake configure failed' }
     cmake --build $build --config Release -j ([Environment]::ProcessorCount)
