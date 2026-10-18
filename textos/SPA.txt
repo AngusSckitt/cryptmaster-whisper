@@ -1,0 +1,4 @@
+# Mod de Whisper: textos en español inyectados en tiempo de ejecución (el juego reescribe Language_SPA.txt en cada arranque).
+# Mismo formato que los archivos de idioma del juego; sigue el estilo del español original (España, «vosotros»).
+# Tono: Whisper es una alternativa/un intento; nunca prometer mejor rendimiento que el Reconocimiento de voz de Windows.
+[SENTENCELOOKUP]/speechwarning01/AVISO: El modo voz es una opción de accesibilidad que desactiva algunas funciones y contenidos del juego. Los siguientes requisitos corresponden al Reconocimiento de voz de Windows, la opción nativa del juego: un micrófono, Windows 10 o superior y el reconocimiento de voz en línea activado en Windows (Configuración > Privacidad > Voz). El modo Whisper, alternativo, intenta implementar una función que ya estaba presente en el juego original, pero que nunca llegó a usarse. Pulsa el botón de la oreja en el juego para detectar la voz.
