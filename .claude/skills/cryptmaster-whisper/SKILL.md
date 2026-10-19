@@ -51,5 +51,9 @@ Whisper code) · `Texts.cs` (injects `textos\` into `allSentenceLookup`/`allOpti
   library is the fallback. Measure fairly with `tools\bench --native <folder>` (in-process, warm).
 - Releases: `tools\package.ps1` → `dist\` installer (Inno Setup, `installer\CryptmasterWhisper.iss`) + zip.
   Downloads (models, CUDA, VC++ runtime) are pinned by URL + SHA-256; CUDA only offered on NVIDIA PCs.
+- Installer benchmark: `native\cmwbench.cpp` (encoder-only timing, two window sizes, GPU and always CPU);
+  estimates and thresholds in `[Code]` of the .iss (see FINDINGS "Model benchmark"). Every device gets its
+  own model: `Model.English/Multilingual` (GPU) and `Model.EnglishCpu/MultilingualCpu` (CPU fallback);
+  `WhisperEngine.ModelFor` picks by `OnGpu`, per utterance.
 - To do: the Options > Voice row `[SPEECHENGINE]` (clone the `[SPEECHON]` GameOption; labels already in
   `textos\`), fuzzy matching to accepted words, real-speech accuracy tests.

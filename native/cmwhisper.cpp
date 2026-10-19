@@ -67,6 +67,28 @@ CMW_API void * cmw_init(const char * model_path, int use_gpu) {
     return whisper_init_from_file_with_params(model_path, cparams);
 }
 
+// The GPU whisper.cpp will use (the first one ggml found), written to name; returns its free memory in MB,
+// or -1 if there is no usable GPU (recognition then runs on the CPU).
+CMW_API int cmw_gpu(char * name, int name_size) {
+    if (!g_backends_loaded) {
+        std::string folder = own_folder();
+        preload_runtimes(folder);
+        ggml_backend_load_all_from_path(folder.c_str());
+        g_backends_loaded = true;
+    }
+    if (name && name_size > 0) name[0] = 0;
+    for (size_t i = 0; i < ggml_backend_dev_count(); i++) {
+        ggml_backend_dev_t dev = ggml_backend_dev_get(i);
+        if (ggml_backend_dev_type(dev) == GGML_BACKEND_DEVICE_TYPE_GPU) {
+            size_t free_mem = 0, total_mem = 0;
+            ggml_backend_dev_memory(dev, &free_mem, &total_mem);
+            if (name && name_size > 0) strncpy_s(name, name_size, ggml_backend_dev_description(dev), _TRUNCATE);
+            return (int) (free_mem >> 20);
+        }
+    }
+    return -1;
+}
+
 CMW_API void cmw_free(void * ctx) {
     if (ctx) whisper_free((whisper_context *) ctx);
 }

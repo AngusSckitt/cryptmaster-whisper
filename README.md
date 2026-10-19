@@ -10,8 +10,9 @@ is still to come (switch with the config for now).
 ## Install
 
 **Installer** (`CryptmasterWhisper-Setup-<version>.exe`): finds the game through Steam and installs BepInEx
-if needed. It can download a larger Whisper model and, on NVIDIA PCs, an optional CUDA backend, all from
-their official sources.
+if needed. It tests your graphics card and your processor, recommends a model for each (the processor's is
+the fallback when the graphics card isn't available) and downloads them. It double-checks them after
+downloading. On NVIDIA PCs it also offers an optional CUDA backend. Everything comes from official sources.
 
 **Manual** (`CryptmasterWhisper-<version>.zip`): with BepInEx 5 (x64) installed, unzip into the game folder.
 

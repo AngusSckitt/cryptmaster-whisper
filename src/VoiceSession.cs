@@ -39,7 +39,7 @@ namespace CryptmasterWhisper
         private bool _finalPending;  // speech ended while a preview was running
         private bool _pushToTalk;
         private string _language;
-        private string _model;
+        private string _gameLanguage;
         private string _prompt;
         private int _generation;
         private readonly ConcurrentQueue<(int generation, WhisperEngine.Result result)> _results = new();
@@ -79,7 +79,7 @@ namespace CryptmasterWhisper
             _busy = _finalPending = false;
             _sessionStart = _speechStart = _lastVoice = _lastPartial = Time.unscaledTime;
             _language = GameLanguages.ToWhisper(save.language);
-            _model = WhisperEngine.ModelFor(save.language, _language);
+            _gameLanguage = save.language;
             _record = Plugin.RecordSessions.Value ? new SessionRecorder.Entry
             {
                 Engine = recordOnly ? Plugin.EngineWindows : Plugin.EngineWhisper,
@@ -98,8 +98,8 @@ namespace CryptmasterWhisper
             _state = _pushToTalk ? State.Speaking : State.Waiting;
             SetEar(true, _pushToTalk ? Plugin.MaxHoldSeconds.Value : Plugin.InitialSilenceSeconds.Value);
             // Load the model in the background now, so the first utterance doesn't wait for it.
-            string model = _model;
-            Task.Run(() => WhisperEngine.Get(model));
+            string gameLanguage = _gameLanguage, whisperLanguage = _language;
+            Task.Run(() => WhisperEngine.Get(WhisperEngine.ModelFor(gameLanguage, whisperLanguage)));
             return true;
         }
 
@@ -331,14 +331,14 @@ namespace CryptmasterWhisper
         {
             float[] audio = _utterance.ToArray();
             int frequency = _frequency, generation = _generation;
-            string language = _language, prompt = _prompt, model = _model;
+            string language = _language, prompt = _prompt, gameLanguage = _gameLanguage;
             _busy = true;
             Task.Run(() =>
             {
                 WhisperEngine.Result result = null;
                 try
                 {
-                    result = WhisperEngine.Transcribe(audio, frequency, model, language, prompt, isFinal);
+                    result = WhisperEngine.Transcribe(audio, frequency, gameLanguage, language, prompt, isFinal);
                 }
                 catch (Exception e)
                 {

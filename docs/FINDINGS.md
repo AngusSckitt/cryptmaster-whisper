@@ -126,6 +126,25 @@ tester should run the S1 session with it.
 In game: the Vulkan build loads in the game's own process alongside its rendering. large-v3-turbo loaded
 in 1.8 s on the RTX 4070 SUPER, and a silent session ended with "no speech heard", with no invented text.
 
+## Model benchmark in the installer
+
+Models can't be timed before they're downloaded (large-v3-turbo is 547 MB), so the installer estimates them.
+`native\cmwbench.exe` times the game's own tiny model, encoder only (the same cost whatever the audio says;
+decoding noise varies per model). It runs at two window sizes (256 and 1500) on the GPU, if there is one,
+and **always on the CPU as well**. The difference between the two sizes is compute; the rest of the short
+window's time is fixed overhead. Bigger models are the same architecture with more compute, so:
+
+`estimate = overhead + compute × ratio` (ratio to tiny: base 2.7, small 10.3, turbo 52.7, measured as CPU
+encoder ratios), × 1.1, + 20 ms for decoding a word.
+
+Checked on this PC (estimate / real, per word): GPU base 26/33 ms, small 28/18 ms, turbo 34–42/41–42 ms;
+CPU base 244/250 ms, small 876/802 ms, turbo 4.4/4.0 s. That's close enough to choose a tier.
+
+The installer recommends the largest model under 300 ms for each device (and GPU memory permitting). The
+CPU gets its own recommendation, used as the fallback whenever the GPU isn't available
+(`Model.EnglishCpu` / `Model.MultilingualCpu`). Both are ticked for download. After downloading, each chosen
+model is timed for real on its device, and swapped for the next smaller available model above 500 ms.
+
 ## Open questions (to test with real speech)
 
 - How accurate tiny is on the game's words in each language, compared with Windows (the `[voice]` lines in

@@ -18,6 +18,7 @@ namespace CryptmasterWhisper
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate IntPtr SystemInfoFn();
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate IntPtr InitFn(byte[] modelUtf8, int useGpu);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate void FreeFn(IntPtr ctx);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int GpuFn(byte[] name, int size);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate int TranscribeFn(IntPtr ctx, float[] samples, int n, byte[] language, byte[] prompt, int audioCtx,
             int threads, int maxTokens, float temperatureInc, byte[] output, int outputSize, out float noSpeech);
@@ -35,6 +36,10 @@ namespace CryptmasterWhisper
         private InitFn _init;
         private FreeFn _free;
         private TranscribeFn _transcribe;
+
+        /// <summary>The GPU in use ("" when recognition runs on the CPU), and its free memory in MB.</summary>
+        internal string GpuName { get; private set; } = "";
+        internal int GpuFreeMb { get; private set; } = -1;
         private static LogFn _logKeepAlive; // the native side keeps this pointer
 
         private NativeBackend(string variant, bool useGpu)
@@ -88,7 +93,16 @@ namespace CryptmasterWhisper
                 }
             };
             backend._setLog?.Invoke(_logKeepAlive);
-            Plugin.Log.LogInfo($"Whisper: using whisper.cpp from native\\{variant} ({(useGpu ? "GPU if available" : "CPU only")}).");
+            GpuFn gpu = Get<GpuFn>("cmw_gpu");
+            if (useGpu && gpu != null)
+            {
+                var name = new byte[256];
+                backend.GpuFreeMb = gpu(name, name.Length);
+                int length = Array.IndexOf(name, (byte)0);
+                backend.GpuName = backend.GpuFreeMb >= 0 ? Encoding.UTF8.GetString(name, 0, length < 0 ? name.Length : length) : "";
+            }
+            Plugin.Log.LogInfo($"Whisper: using whisper.cpp from native\\{variant} on " +
+                (backend.GpuName != "" ? $"the GPU ({backend.GpuName}, {backend.GpuFreeMb} MB free)." : "the CPU."));
             return backend;
         }
 

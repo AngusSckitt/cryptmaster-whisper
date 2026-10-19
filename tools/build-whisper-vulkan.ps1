@@ -25,7 +25,7 @@ try {
     cmake --build $build --config Release -j ([Environment]::ProcessorCount)
     if ($LASTEXITCODE) { throw 'cmake build failed' }
     New-Item -ItemType Directory -Force $out | Out-Null
-    Copy-Item "$build\bin\Release\*.dll", "$build\bin\Release\whisper-cli.exe" $out -Force
+    Copy-Item "$build\bin\Release\*.dll", "$build\bin\Release\whisper-cli.exe", "$build\bin\Release\cmwbench.exe" $out -Force
     Copy-Item "$src\LICENSE" "$out\LICENSE-whisper.cpp.txt" -Force
     Get-ChildItem $out | ForEach-Object { '{0,-36} {1,8:N1} MB' -f $_.Name, ($_.Length / 1MB) }
     "Built whisper.cpp $Version (Vulkan) in $Work\out"

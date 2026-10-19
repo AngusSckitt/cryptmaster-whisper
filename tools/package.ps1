@@ -23,6 +23,9 @@ Copy-Item "$root\textos\*.txt" "$plugin\textos"
 Copy-Item "$root\LICENSE", "$root\THIRD-PARTY-NOTICES.txt", "$root\README.md" $plugin
 Get-ChildItem $NativeDir -Filter *.dll | Where-Object Name -ne 'parakeet.dll' | Copy-Item -Destination "$plugin\native\vulkan"
 Copy-Item "$NativeDir\LICENSE-whisper.cpp.txt" "$plugin\native\vulkan"
+# The installer's model benchmark (it also uses the native\vulkan files).
+New-Item -ItemType Directory -Force "$stage\bench" | Out-Null
+Copy-Item "$NativeDir\cmwbench.exe" "$stage\bench"
 Set-Content "$plugin\models\README.txt" 'Optional extra Whisper models (ggml .bin files). Select them in BepInEx\config\cryptmaster.whisper.cfg (Model section).' -Encoding ASCII
 
 # BepInEx 5, pinned.

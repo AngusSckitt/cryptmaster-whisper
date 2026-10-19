@@ -25,6 +25,8 @@ namespace CryptmasterWhisper
         internal static ConfigEntry<string> Engine;
         internal static ConfigEntry<string> ModelEnglish;
         internal static ConfigEntry<string> ModelMultilingual;
+        internal static ConfigEntry<string> ModelEnglishCpu;
+        internal static ConfigEntry<string> ModelMultilingualCpu;
         internal static ConfigEntry<string> LanguageMap;
         internal static ConfigEntry<string> ModelPerLanguage;
         internal static ConfigEntry<int> Threads;
@@ -67,6 +69,8 @@ namespace CryptmasterWhisper
                 "Model for every other language (must be a multilingual model). Larger models (e.g. ggml-base.bin) placed in the models folder are slower but may recognise better.");
             ModelPerLanguage = Config.Bind("Model", "PerLanguage", "",
                 "Model per game language code, overriding the two above, e.g. 'POR=ggml-small-q5_1.bin;SPA=ggml-base-q5_1.bin'. Works with the game's own languages and any localisation mod's code.");
+            ModelEnglishCpu = Config.Bind("Model", "EnglishCpu", "", "Model for English when recognition runs on the CPU (no GPU, or the GPU failed). Empty = the same as English.");
+            ModelMultilingualCpu = Config.Bind("Model", "MultilingualCpu", "", "Model for other languages when recognition runs on the CPU. Empty = the same as Multilingual. The installer's benchmark fills both.");
             LanguageMap = Config.Bind("Model", "LanguageMap", "",
                 "Extra game-language-code=whisper-language pairs, e.g. 'DEU=de;FRA=fr'. Common codes are built in.");
             Backend = Config.Bind("Performance", "Backend", BackendAuto,

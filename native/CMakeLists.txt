@@ -12,3 +12,8 @@ add_subdirectory(${WHISPER_SRC} whisper)
 add_library(cmwhisper SHARED cmwhisper.cpp)
 target_link_libraries(cmwhisper PRIVATE whisper ggml)
 set_target_properties(cmwhisper PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin/Release")
+
+# Times models for the installer's recommendation.
+add_executable(cmwbench cmwbench.cpp)
+target_link_libraries(cmwbench PRIVATE whisper ggml)
+set_target_properties(cmwbench PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin/Release")

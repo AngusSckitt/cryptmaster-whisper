@@ -37,7 +37,24 @@ namespace CryptmasterWhisper
             }
         }
 
-        /// <summary>Model.PerLanguage (by game language code) first, then the English or multilingual default.</summary>
+        /// <summary>True when recognition runs on a GPU (a native backend that found one).</summary>
+        internal static bool OnGpu
+        {
+            get
+            {
+                lock (Lock)
+                {
+                    ChooseBackend();
+                    return _native != null && _native.UseGpu && _native.GpuName != "";
+                }
+            }
+        }
+
+        /// <summary>
+        /// Model.PerLanguage (by game language code) first; then, on the CPU, Model.EnglishCpu/MultilingualCpu
+        /// (the installer's benchmark may pick a smaller model for the CPU than for the GPU); then Model.English
+        /// or Model.Multilingual.
+        /// </summary>
         internal static string ModelFor(string gameLanguage, string whisperLanguage)
         {
             foreach (string pair in Plugin.ModelPerLanguage.Value.Split(';'))
@@ -48,7 +65,16 @@ namespace CryptmasterWhisper
                     return kv[1].Trim();
                 }
             }
-            return whisperLanguage == "en" ? Plugin.ModelEnglish.Value : Plugin.ModelMultilingual.Value;
+            bool english = whisperLanguage == "en";
+            if (!OnGpu)
+            {
+                string cpu = (english ? Plugin.ModelEnglishCpu.Value : Plugin.ModelMultilingualCpu.Value).Trim();
+                if (cpu != "")
+                {
+                    return cpu;
+                }
+            }
+            return english ? Plugin.ModelEnglish.Value : Plugin.ModelMultilingual.Value;
         }
 
         internal static string ResolveModel(string name)
@@ -119,8 +145,9 @@ namespace CryptmasterWhisper
                         Plugin.Log.LogInfo($"Whisper model {Path.GetFileName(nativePath)} loaded in {watch.ElapsedMilliseconds} ms ({BackendName}).");
                         return true;
                     }
-                    Plugin.Log.LogWarning($"Whisper: model '{modelName}' could not be loaded by native\\{_native.Variant}; falling back to the game's library.");
+                    Plugin.Log.LogWarning($"Whisper: model '{modelName}' could not be loaded by native\\{_native.Variant}; falling back to the game's library and the CPU models.");
                     _native = null;
+                    return false; // the caller picks the CPU model next time
                 }
                 if (Models.TryGetValue(modelName, out WhisperWrapper loaded))
                 {
@@ -169,11 +196,17 @@ namespace CryptmasterWhisper
         }
 
         /// <summary>Transcribes one utterance; blocking, call from a worker thread.</summary>
-        internal static unsafe Result Transcribe(float[] samples, int frequency, string model, string language, string prompt, bool isFinal)
+        internal static unsafe Result Transcribe(float[] samples, int frequency, string gameLanguage, string language, string prompt, bool isFinal)
         {
+            // Chosen per call: if the GPU fails, the next attempt uses the CPU model.
+            string model = ModelFor(gameLanguage, language);
             if (!Get(model))
             {
-                return null;
+                model = ModelFor(gameLanguage, language);
+                if (!Get(model))
+                {
+                    return null;
+                }
             }
             float seconds = samples.Length / (float)frequency;
             int threads = Plugin.Threads.Value > 0 ? Plugin.Threads.Value : Mathf.Clamp(Environment.ProcessorCount - 1, 1, 4);
