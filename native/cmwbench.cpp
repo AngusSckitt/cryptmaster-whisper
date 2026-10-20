@@ -35,19 +35,20 @@ int main(int argc, char ** argv) {
     ggml_backend_load_all_from_path(exe_folder().c_str());
 
     // The GPU whisper.cpp would use (the first one), and its free memory.
-    std::string device = "CPU";
+    std::string device = "CPU", backend = "CPU";
     size_t free_mem = 0, total_mem = 0;
     if (!cpu) {
         for (size_t i = 0; i < ggml_backend_dev_count(); i++) {
             ggml_backend_dev_t dev = ggml_backend_dev_get(i);
             if (ggml_backend_dev_type(dev) == GGML_BACKEND_DEVICE_TYPE_GPU) {
                 device = ggml_backend_dev_description(dev);
+                backend = ggml_backend_dev_name(dev); // e.g. Vulkan0, CUDA0
                 ggml_backend_dev_memory(dev, &free_mem, &total_mem);
                 break;
             }
         }
     }
-    printf("device=%s\nvram_free_mb=%zu\nvram_total_mb=%zu\n", device.c_str(), free_mem >> 20, total_mem >> 20);
+    printf("device=%s\nbackend=%s\nvram_free_mb=%zu\nvram_total_mb=%zu\n", device.c_str(), backend.c_str(), free_mem >> 20, total_mem >> 20);
 
     auto t0 = std::chrono::steady_clock::now();
     whisper_context_params cparams = whisper_context_default_params();

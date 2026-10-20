@@ -145,6 +145,20 @@ CPU gets its own recommendation, used as the fallback whenever the GPU isn't ava
 (`Model.EnglishCpu` / `Model.MultilingualCpu`). Both are ticked for download. After downloading, each chosen
 model is timed for real on its device, and swapped for the next smaller available model above 500 ms.
 
+With CUDA present (already there, or downloaded on request), the installer times the GPU model on both
+backends with a full word-level run, and uses CUDA only if it's more than 10% faster. On the RTX 4070
+SUPER, large-v3-turbo took 32 ms with CUDA against 41 ms with Vulkan, so the installer picked CUDA.
+That's a real but unnoticeable difference, and it's why every PC gets tested rather than trusting n = 1.
+
+Anything already in the mod's folder (model files, a CUDA folder, test recordings) and an existing settings
+file are listed on their own page, each with an unticked delete box and a red warning that it may be from
+a previous install or there for some other reason. Unticked, nothing is overwritten or deleted: identical
+models aren't downloaded again, and existing settings are kept (only missing ones are added). The
+uninstaller removes only what the installer added (`added-by-installer.txt`) plus its own files.
+
+Note: Inno Setup merges uninstall records across reinstalls with the same AppId. An early test build had a
+"delete the whole plugin folder" rule; it never shipped, but a test folder installed with it keeps that rule.
+
 ## Open questions (to test with real speech)
 
 - How accurate tiny is on the game's words in each language, compared with Windows (the `[voice]` lines in
