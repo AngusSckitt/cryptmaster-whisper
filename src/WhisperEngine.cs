@@ -128,6 +128,46 @@ namespace CryptmasterWhisper
             }
         }
 
+        /// <summary>
+        /// After Performance.Backend changed in the menu: switches now if possible (nothing loaded yet, or
+        /// GPU/CPU within the same build); returns true if it only applies after restarting the game. The
+        /// Vulkan and CUDA builds both ship whisper.dll and ggml.dll, and Windows reuses an already-loaded
+        /// DLL by name, so once one of them is loaded the other can't be.
+        /// </summary>
+        internal static bool BackendChanged()
+        {
+            lock (Lock)
+            {
+                if (_native == null && !_backendChosen)
+                {
+                    return false; // nothing loaded yet: the next session picks it up
+                }
+                string loaded = _native?.Variant;
+                string wanted = Plugin.Backend.Value == Plugin.BackendCuda ? "cuda" : Plugin.Backend.Value == Plugin.BackendGame ? null : "vulkan";
+                if (Plugin.Backend.Value == Plugin.BackendAuto && NativeBackend.IsInstalled("cuda")
+                    && Plugin.CudaGpuMs.Value > 0 && Plugin.VulkanGpuMs.Value > 0 && Plugin.CudaGpuMs.Value * 10 < Plugin.VulkanGpuMs.Value * 9)
+                {
+                    wanted = "cuda";
+                }
+                if (loaded != null && wanted != null && loaded != wanted)
+                {
+                    return true;
+                }
+                // Same build (or the game's library): reload with the new GPU/CPU choice.
+                foreach (IntPtr ctx in NativeModels.Values)
+                {
+                    if (ctx != IntPtr.Zero)
+                    {
+                        _native?.FreeModel(ctx);
+                    }
+                }
+                NativeModels.Clear();
+                _native = null;
+                _backendChosen = false;
+                return false;
+            }
+        }
+
         internal static string BackendName => _native == null ? "game" : _native.Variant + (_native.UseGpu ? "" : "-cpu");
 
         /// <summary>Folds a real final-result time into the measured time of the backend in use (shown in the menu).</summary>

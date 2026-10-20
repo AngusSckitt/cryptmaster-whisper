@@ -4,3 +4,7 @@
 [SENTENCELOOKUP]/speechwarning01/WARNING: Voice mode is an accessibility option and will disable some gameplay features and content. The following requirements apply to Windows Speech Recognition, the game's native option: a microphone, Windows 10 or greater, and online speech detection enabled in Windows (Settings->Privacy->Speech, inking & typing). The alternative Whisper mode attempts to implement a feature that was already present in the original game but never used. Please press the "Ear" button in game to detect speech.
 [MENUOPTION]/[SPEECHENGINE]/Voice Recognition/Windows (default; vanilla),Whisper
 [MENUOPTION]/[SPEECHLISTEN]/Whisper Listening/Automatic,Push to Talk
+[MENUOPTION]/[SPEECHBACKEND]/Whisper Hardware/Auto (Default),GPU (Vulkan),GPU (CUDA),CPU (Vulkan)
+[SENTENCELOOKUP]/whisperhintgpu/GPU allows for larger models which might improve recognition accuracy.
+[SENTENCELOOKUP]/whisperhintcpu/CPU tends to require smaller models to make up for latency, which might result in somewhat lower - but still good - recognition accuracy.
+[SENTENCELOOKUP]/whisperhintrestart/Applies after restarting the game.

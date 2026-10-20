@@ -62,7 +62,7 @@ Name: "models"; Description: "Extra Whisper models (downloaded; the game's own t
 Name: "models\base"; Description: "base: 57 MB"; ExtraDiskSpaceRequired: 59707625
 Name: "models\small"; Description: "small: 181 MB"; ExtraDiskSpaceRequired: 190085487
 Name: "models\turbo"; Description: "large-v3-turbo: 547 MB, the most accurate"; ExtraDiskSpaceRequired: 574041195
-Name: "cuda"; Description: "NVIDIA CUDA backend: about 650 MB download, then tested against Vulkan (read the next page)"; ExtraDiskSpaceRequired: 1400000000; Check: CudaOffered
+Name: "cuda"; Description: "NVIDIA CUDA backend: about 650 MB download, 1.3 GB unpacked on disk, then tested against Vulkan"; ExtraDiskSpaceRequired: 1400000000; Check: CudaOffered
 
 [Files]
 ; Only the mod's own files: other files already in the folder are left alone.
@@ -102,6 +102,8 @@ var
   FoundWarning: array of String;
   FoundBox: array of TNewCheckBox;
   FoundDetected: Boolean;
+  // Shown under the components list while CUDA is ticked.
+  CudaNote: TNewStaticText;
   // Results for the finish page.
   Summary: String;
   AddedFiles: TStringList;
@@ -605,6 +607,8 @@ end;
 
 // ---- Pages ----
 
+procedure CreateCudaNote; forward;
+
 procedure InitializeWizard;
 begin
   AddedFiles := TStringList.Create;
@@ -628,11 +632,36 @@ begin
     'The official whisper.cpp release on GitHub (ggml-org/whisper.cpp, build b5454), checked against a fixed SHA-256 hash. It contains NVIDIA CUDA runtime files under NVIDIA''s own licence (the CUDA Toolkit EULA). This installer doesn''t contain any NVIDIA files; it downloads them onto your computer only if you keep this option.' + #13#10#13#10 +
     'If unsure, go back and untick it. You can switch backends later in BepInEx\config\cryptmaster.whisper.cfg (Performance.Backend).');
   DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), 'Downloading the selected files...', nil);
+  CreateCudaNote;
+end;
+
+procedure UpdateCudaNote(Sender: TObject);
+begin
+  CudaNote.Visible := WizardIsComponentSelected('cuda');
+end;
+
+procedure CreateCudaNote;
+var
+  List: TNewCheckListBox;
+begin
+  List := WizardForm.ComponentsList;
+  CudaNote := TNewStaticText.Create(WizardForm);
+  CudaNote.Parent := List.Parent;
+  CudaNote.Caption := 'CUDA selected: additional information on the next page.';
+  CudaNote.Font.Style := [fsBold];
+  CudaNote.Left := List.Left;
+  CudaNote.Width := List.Width;
+  // Make room under the list.
+  List.Height := List.Height - ScaleY(20);
+  CudaNote.Top := List.Top + List.Height + ScaleY(4);
+  CudaNote.Visible := False;
+  List.OnClickCheck := @UpdateCudaNote;
 end;
 
 procedure CurPageChanged(CurPageID: Integer);
 begin
-  if CurPageID = BenchPage.ID then RunBenchmark(True)
+  if CurPageID = wpSelectComponents then UpdateCudaNote(nil)
+  else if CurPageID = BenchPage.ID then RunBenchmark(True)
   else if CurPageID = wpFinished then
     WizardForm.FinishedLabel.Caption := 'Cryptmaster Whisper is installed. Windows Speech Recognition (default; vanilla) stays the default; set Engine = Whisper in BepInEx\config\cryptmaster.whisper.cfg to try Whisper.' + #13#10#13#10 + Summary;
 end;
