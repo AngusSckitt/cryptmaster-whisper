@@ -48,6 +48,8 @@ Compression=lzma2
 SolidCompression=yes
 LicenseFile=..\LICENSE
 UninstallDisplayName=Cryptmaster Whisper
+; Inno's own detailed log (copied into the mod's logs folder at the end, next to the event log).
+SetupLogging=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"; InfoBeforeFile: "installer-info.txt"
@@ -75,6 +77,10 @@ Source: "{#Stage}\bepinex\BepInEx.zip"; DestDir: "{tmp}"; Flags: deleteafterinst
 ; Same source files as native\vulkan above, so the installer stores them once.
 Source: "{#Stage}\plugin\native\vulkan\*.dll"; DestDir: "{tmp}\bench"; Flags: dontcopy
 Source: "{#Stage}\bench\cmwbench.exe"; DestDir: "{tmp}\bench"; Flags: dontcopy
+
+[Run]
+; Finish page: open this installation's event log in the default text editor.
+Filename: "{code:EventLogPath}"; Description: "{cm:OpenLog}"; Flags: postinstall shellexec skipifsilent unchecked; Check: EventLogExists
 
 [Code]
 const
@@ -127,6 +133,42 @@ begin
   Result := Msg(Key);
   for I := GetArrayLength(Args) - 1 downto 0 do
     StringChangeEx(Result, '%' + IntToStr(I + 1), Args[I], True);
+end;
+
+// ---- Event log: shown live on the installing page and written to the mod's logs folder as it happens ----
+
+var
+  EventLines: TStringList;   // everything so far (kept until the mod folder exists, then written)
+  EventLogFile: String;      // '' until the mod folder exists
+  LiveLog: TNewMemo;
+
+procedure EventLog(S: String);
+var
+  Line: String;
+begin
+  Log(S);
+  // Every entry is stamped with the date and time to the millisecond; lines of a multi-line entry are
+  // indented under its stamp.
+  Line := GetDateTimeString('yyyy-mm-dd hh:nn:ss.zzz', '-', ':') + '  ' + S;
+  StringChangeEx(Line, #13#10, #13#10 + '                         ', True);
+  if EventLines = nil then EventLines := TStringList.Create;
+  EventLines.Add(Line);
+  if EventLogFile <> '' then SaveStringToFile(EventLogFile, Line + #13#10, True);
+  if LiveLog <> nil then
+  begin
+    LiveLog.Lines.Add(Line);
+    LiveLog.SelStart := Length(LiveLog.Text); // keep the newest line in view
+  end;
+end;
+
+function EventLogPath(Param: String): String;
+begin
+  Result := EventLogFile;
+end;
+
+function EventLogExists: Boolean;
+begin
+  Result := (EventLogFile <> '') and FileExists(EventLogFile);
 end;
 
 // ---- Models: 0 tiny (the game's), 1 base, 2 small, 3 turbo ----
@@ -490,9 +532,9 @@ begin
   DeleteFile(OutFile);
   Result := Exec(ExpandConstant('{cmd}'), '/C ""' + Exe + '" "' + Model + '" ' + Args + ' > "' + OutFile + '""',
     ExtractFileDir(Exe), SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0) and LoadStringsFromFile(OutFile, Lines);
-  if Result then Log('cmwbench (' + ExtractFileDir(Exe) + ') ' + Args + ': ' + BenchValue(Lines, 'backend') + ' ' + BenchValue(Lines, 'device') +
+  if Result then EventLog('cmwbench (' + ExtractFileDir(Exe) + ') ' + Args + ': ' + BenchValue(Lines, 'backend') + ' ' + BenchValue(Lines, 'device') +
     ', median ' + BenchValue(Lines, 'median_ms') + ' ms, encode ' + BenchValue(Lines, 'encode_ms') + ' ms')
-  else Log('cmwbench failed: ' + Exe + ' ' + Args);
+  else EventLog('cmwbench failed: ' + Exe + ' ' + Args);
 end;
 
 function RunBench(Model, Args: String; var Lines: TArrayOfString): Boolean;
@@ -611,7 +653,7 @@ begin
     Report := Report + Msg('RepCudaPresent') + #13#10;
   Report := Report + #13#10 + Fmt('RepFootnote', [IntToStr(BudgetMs)]);
   BenchPage.RichEditViewer.Text := Report;
-  Log(Report);
+  EventLog(Report);
   if not Interactive then Exit;
   // Tick the recommendations on the components page.
   for I := 1 to ModelCount - 1 do
@@ -634,6 +676,19 @@ begin
   CudaPage := CreateOutputMsgMemoPage(FoundPage2.ID, Msg('CudaTitle'), Msg('CudaDesc'), Msg('CudaCaption'), Msg('CudaBody'));
   DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), Msg('DownloadDesc'), nil);
   CreateCudaNote;
+  // The installing page: a live view of the event log under the progress bar.
+  LiveLog := TNewMemo.Create(WizardForm);
+  LiveLog.Parent := WizardForm.InstallingPage;
+  LiveLog.Left := WizardForm.ProgressGauge.Left;
+  LiveLog.Width := WizardForm.ProgressGauge.Width;
+  LiveLog.Top := WizardForm.ProgressGauge.Top + WizardForm.ProgressGauge.Height + ScaleY(12);
+  LiveLog.Height := WizardForm.InstallingPage.ClientHeight - LiveLog.Top - ScaleY(4);
+  LiveLog.ReadOnly := True;
+  LiveLog.ScrollBars := ssVertical;
+  LiveLog.WordWrap := True;
+  LiveLog.Font.Name := 'Consolas';
+  LiveLog.Font.Size := 8;
+  EventLog('Setup started: Cryptmaster Whisper {#AppVersion}, language ' + ActiveLanguage + ', ' + GetWindowsVersionString + '.');
 end;
 
 procedure UpdateCudaNote(Sender: TObject);
@@ -681,7 +736,11 @@ begin
   PtModBox.Left := WizardForm.FinishedLabel.Left;
   PtModBox.Width := WizardForm.FinishedLabel.Width;
   PtModBox.Height := ScaleY(34);
-  PtModBox.Top := WizardForm.FinishedPage.ClientHeight - ScaleY(44);
+  // Under the "open the log" checkbox, if it's there; otherwise at the bottom of the page.
+  if WizardForm.RunList.Visible then
+    PtModBox.Top := WizardForm.RunList.Top + WizardForm.RunList.Height + ScaleY(6)
+  else
+    PtModBox.Top := WizardForm.FinishedPage.ClientHeight - ScaleY(44);
   PtModBox.Caption := Msg('PtModOffer');
   PtModBox.Checked := True;
 end;
@@ -712,7 +771,7 @@ begin
       end;
     until False;
   except
-    Log('PT mod release lookup failed: ' + GetExceptionMessage);
+    EventLog('PT mod release lookup failed: ' + GetExceptionMessage);
   end;
 end;
 
@@ -721,18 +780,30 @@ var
   Url: String;
   Code: Integer;
 begin
-  if (PtModBox = nil) or not PtModBox.Checked then Exit;
+  if PtModBox = nil then Exit;
+  if not PtModBox.Checked then
+  begin
+    EventLog('Portuguese localisation offer: declined.');
+    Exit;
+  end;
+  EventLog('Portuguese localisation offer: accepted; looking for its latest installer...');
   Url := LatestPtInstallerUrl;
   if Url <> '' then
     try
+      EventLog('Downloading ' + Url);
       DownloadTemporaryFile(Url, 'pt-installer.exe', '', nil);
       // Copied out of {tmp}, which this installer deletes when it closes.
       FileCopy(ExpandConstant('{tmp}\pt-installer.exe'), ExpandConstant('{%TEMP}\CryptmasterLocalizacaoPTBR-Setup.exe'), False);
-      if ShellExec('', ExpandConstant('{%TEMP}\CryptmasterLocalizacaoPTBR-Setup.exe'), '', '', SW_SHOWNORMAL, ewNoWait, Code) then Exit;
+      if ShellExec('', ExpandConstant('{%TEMP}\CryptmasterLocalizacaoPTBR-Setup.exe'), '', '', SW_SHOWNORMAL, ewNoWait, Code) then
+      begin
+        EventLog('Portuguese localisation installer started.');
+        Exit;
+      end;
     except
-      Log('PT mod installer download failed: ' + GetExceptionMessage);
+      EventLog('PT mod installer download failed: ' + GetExceptionMessage);
     end;
   // No installer release yet (or no connection): the releases page instead.
+  EventLog('No Portuguese localisation installer available: opening its releases page instead.');
   SuppressibleMsgBox(Msg('PtModFallback'), mbInformation, MB_OK, IDOK);
   ShellExec('open', 'https://github.com/' + PtRepo + '/releases/latest', '', '', SW_SHOWNORMAL, ewNoWait, Code);
 end;
@@ -747,6 +818,10 @@ begin
     WizardForm.FinishedLabel.Caption := Msg('Finished') + #13#10#13#10 + Summary;
     if Msg('FinishLangNote') <> '' then
       WizardForm.FinishedLabel.Caption := WizardForm.FinishedLabel.Caption + #13#10 + Msg('FinishLangNote');
+    // The label keeps its original height unless told otherwise: grow it to fit the summary, and move
+    // the checkboxes below it.
+    WizardForm.FinishedLabel.AdjustHeight;
+    WizardForm.RunList.Top := WizardForm.FinishedLabel.Top + WizardForm.FinishedLabel.Height + ScaleY(8);
     ShowPtModOffer;
   end;
 end;
@@ -781,9 +856,15 @@ begin
       Result := False;
       Exit;
     end;
+    EventLog('Game folder: ' + WizardDirValue);
     DetectFound;
     BuildFoundPage;
+    if FoundCount = 0 then EventLog('Nothing of the mod''s was already there.');
+    for I := 0 to FoundCount - 1 do
+      EventLog('Already there: ' + FoundPath[I]);
   end
+  else if CurPageID = wpSelectComponents then
+    EventLog('Components chosen: ' + WizardSelectedComponents(False))
   else if CurPageID = wpReady then
   begin
     DownloadPage.Clear;
@@ -792,19 +873,37 @@ begin
       if NeedsDownload(I) then
       begin
         DownloadPage.Add('{#HfBase}' + ModelFile(I), ModelFile(I), ModelSha(I));
+        EventLog('To download: ' + ModelFile(I) + ' (SHA-256 checked)');
         Any := True;
-      end;
-    if WizardIsComponentSelected('cuda') then begin DownloadPage.Add('{#CudaUrl}', 'whisper-cuda.zip', '{#CudaSha}'); Any := True; end;
-    if NeedsVcRuntime then begin DownloadPage.Add('https://aka.ms/vs/17/release/vc_redist.x64.exe', 'vc_redist.x64.exe', ''); Any := True; end;
+      end
+      else if WizardIsComponentSelected(ModelComponent(I)) then
+        EventLog('Not downloading ' + ModelFile(I) + ': already there.');
+    if WizardIsComponentSelected('cuda') then
+    begin
+      DownloadPage.Add('{#CudaUrl}', 'whisper-cuda.zip', '{#CudaSha}');
+      EventLog('To download: the CUDA backend from {#CudaUrl} (SHA-256 checked)');
+      Any := True;
+    end;
+    if NeedsVcRuntime then
+    begin
+      DownloadPage.Add('https://aka.ms/vs/17/release/vc_redist.x64.exe', 'vc_redist.x64.exe', '');
+      EventLog('To download: the Microsoft Visual C++ runtime (it''s missing)');
+      Any := True;
+    end;
     if Any then
     begin
       DownloadPage.Show;
       try
         try
           DownloadPage.Download;
+          EventLog('Downloads finished; every checksum matched.');
         except
-          if DownloadPage.AbortedByUser then Log('Download aborted by user.')
-          else SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
+          if DownloadPage.AbortedByUser then EventLog('Download aborted by user.')
+          else
+          begin
+            EventLog('Download failed: ' + GetExceptionMessage);
+            SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
+          end;
           Result := False;
         end;
       finally
@@ -831,16 +930,18 @@ begin
   ForceDirectories(ExtractFileDir(ConfigFile)); // BepInEx creates it only on its first run
   if (not ReplaceSettings) and (GetIniString(Section, Key, '', ConfigFile) <> '') then
   begin
-    Log('Kept existing setting ' + Section + '.' + Key + ' = ' + GetIniString(Section, Key, '', ConfigFile) + ' (wanted ' + Value + ')');
+    EventLog('Kept existing setting ' + Section + '.' + Key + ' = ' + GetIniString(Section, Key, '', ConfigFile) + ' (wanted ' + Value + ')');
     Exit;
   end;
-  if not SetIniString(Section, Key, Value, ConfigFile) then Log('Could not write the setting ' + Section + '.' + Key);
+  if SetIniString(Section, Key, Value, ConfigFile) then EventLog('Setting written: ' + Section + '.' + Key + ' = ' + Value)
+  else EventLog('Could not write the setting ' + Section + '.' + Key);
 end;
 
 procedure SetMeasurement(Key: String; Ms: Integer);
 begin
   ForceDirectories(ExtractFileDir(ConfigFile));
   SetIniString('Benchmark', Key, IntToStr(Ms), ConfigFile);
+  EventLog('Measurement recorded: Benchmark.' + Key + ' = ' + IntToStr(Ms) + ' ms');
 end;
 
 function ModelPath(I: Integer): String;
@@ -884,7 +985,7 @@ begin
   while Result >= 0 do
   begin
     Ms := Verify(Result, Device);
-    Log('Verified ' + ModelLabel(Result) + ' on device ' + IntToStr(Device) + ': ' + IntToStr(Ms) + ' ms');
+    EventLog('Verified ' + ModelLabel(Result) + ' on device ' + IntToStr(Device) + ': ' + IntToStr(Ms) + ' ms');
     if (Result = 0) or ((Ms >= 0) and (Ms <= VerifyMaxMs)) then Exit;
     Result := BestAvailable(Result - 1);
   end;
@@ -976,7 +1077,7 @@ begin
       end;
     end;
   end;
-  Log(Summary);
+  EventLog(Summary);
 end;
 
 procedure InstallCuda;
@@ -1013,9 +1114,31 @@ begin
   for I := 0 to FoundCount - 1 do
     if (not FoundIsSettings[I]) and (FoundBox[I] <> nil) and FoundBox[I].Checked then
     begin
-      Log('Deleting (ticked by the player): ' + FoundPath[I]);
+      EventLog('Deleting (ticked by the player): ' + FoundPath[I]);
       if FoundIsDir[I] then DelTree(FoundPath[I], True, True, True) else DeleteFile(FoundPath[I]);
-    end;
+    end
+    else if FoundIsSettings[I] then
+    begin
+      if ReplaceSettings then EventLog('Existing settings: will be replaced with the recommendations (ticked by the player).')
+      else EventLog('Existing settings: kept; only missing settings will be added.');
+    end
+    else
+      EventLog('Kept as it was: ' + FoundPath[I]);
+end;
+
+// The mod folder exists from here on: write everything logged so far, then keep appending.
+procedure StartEventLogFile;
+var
+  I: Integer;
+begin
+  if EventLogFile <> '' then Exit;
+  ForceDirectories(PluginDir + '\logs');
+  EventLogFile := PluginDir + '\logs\install-' + GetDateTimeString('yyyymmdd-hhnnss', '-', ':') + '.log';
+  if EventLines <> nil then
+    for I := 0 to EventLines.Count - 1 do
+      SaveStringToFile(EventLogFile, EventLines[I] + #13#10, True);
+  AddedFiles.Add('logs');
+  EventLog('Event log: ' + EventLogFile);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -1026,19 +1149,36 @@ begin
   if CurStep = ssDone then
   begin
     RunPtModOffer;
+    EventLog('Setup finished.');
+    // Inno's own detailed log, next to the event log.
+    if (ExpandConstant('{log}') <> '') and (EventLogFile <> '') then
+      FileCopy(ExpandConstant('{log}'), ChangeFileExt(EventLogFile, '') + '-detailed.log', False);
     Exit;
   end;
   if CurStep = ssInstall then
   begin
+    StartEventLogFile;
     if not FoundDetected then DetectFound; // silent installs: detected, never deleted
     DeleteMarked;
+    EventLog('Installing the mod''s files into ' + PluginDir + '...');
     Exit;
   end;
   if CurStep <> ssPostInstall then Exit;
+  EventLog('Mod files installed.');
   if FileExists(ExpandConstant('{tmp}\BepInEx.zip')) then
+  begin
+    EventLog('Installing BepInEx 5 (it wasn''t there)...');
     Unzip(ExpandConstant('{tmp}\BepInEx.zip'), ExpandConstant('{app}'));
+    if BepInExInstalled then EventLog('BepInEx installed.') else EventLog('BepInEx could NOT be installed.');
+  end
+  else
+    EventLog('BepInEx was already installed: left as it is.');
   if FileExists(ExpandConstant('{tmp}\vc_redist.x64.exe')) then
+  begin
+    EventLog('Installing the Microsoft Visual C++ runtime...');
     Exec(ExpandConstant('{tmp}\vc_redist.x64.exe'), '/install /quiet /norestart', '', SW_HIDE, ewWaitUntilTerminated, Code);
+    EventLog('Visual C++ runtime installer finished (exit code ' + IntToStr(Code) + ').');
+  end;
   Models := PluginDir + '\models';
   ForceDirectories(Models);
   for I := 1 to ModelCount - 1 do
@@ -1047,14 +1187,30 @@ begin
     Dest := Models + '\' + ModelFile(I);
     // Never overwrites a file that was already there (it was kept, so it stays).
     if FileExists(Src) and not FileExists(Dest) then
-      if FileCopy(Src, Dest, True) then AddedFiles.Add('models\' + ModelFile(I));
+    begin
+      if FileCopy(Src, Dest, True) then
+      begin
+        AddedFiles.Add('models\' + ModelFile(I));
+        EventLog('Model added: ' + ModelFile(I));
+      end
+      else
+        EventLog('Model could NOT be copied: ' + ModelFile(I));
+    end
+    else if FileExists(Src) then
+      EventLog('Model not copied, one was already there: ' + ModelFile(I));
   end;
   if WizardIsComponentSelected('cuda') and FileExists(ExpandConstant('{tmp}\whisper-cuda.zip')) and not DirExists(CudaDir) then
+  begin
+    EventLog('Unpacking the CUDA backend (about 1.3 GB)...');
     InstallCuda;
+    EventLog('CUDA backend unpacked into ' + CudaDir);
+  end;
+  EventLog('Timing the chosen models for real...');
   ConfigureModels;
   // For the uninstaller: what this installation added besides its own [Files] (appended to earlier runs).
   for I := 0 to AddedFiles.Count - 1 do
     SaveStringToFile(PluginDir + '\' + AddedListName, AddedFiles[I] + #13#10, True);
+  EventLog('Recorded for the uninstaller: ' + IntToStr(AddedFiles.Count) + ' added item(s).');
 end;
 
 // ---- Uninstalling: only what this installer added ----
