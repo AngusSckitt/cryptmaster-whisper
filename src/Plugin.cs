@@ -46,11 +46,13 @@ namespace CryptmasterWhisper
 
         internal static bool UseWhisper => Engine.Value == EngineWhisper;
         internal static bool PushToTalk => Listening.Value == ListenPushToTalk;
+        internal static bool VoiceActivation => Listening.Value == ListenVoiceActivation;
         internal const string EngineWindows = "Windows";
         internal const string EngineWhisper = "Whisper";
         internal const string BackendAuto = "Auto", BackendVulkan = "Vulkan", BackendCuda = "CUDA", BackendCpu = "CPU", BackendGame = "Game";
         internal const string ListenAutomatic = "Automatic";
         internal const string ListenPushToTalk = "PushToTalk";
+        internal const string ListenVoiceActivation = "VoiceActivation";
 
         private void Awake()
         {
@@ -91,8 +93,8 @@ namespace CryptmasterWhisper
             VocabularyPrompt = Config.Bind("Advanced", "VocabularyPrompt", true, "Hint Whisper with the party's names and current skill words.");
             CompareLog = Config.Bind("Advanced", "CompareLog", true, "Log every recognised utterance with timings, for both recognisers, to compare them.");
             Listening = Config.Bind("Listening", "Mode", ListenAutomatic,
-                new ConfigDescription("Whisper only. Automatic: press the Ear button, speak, and the end of speech is detected. PushToTalk: hold the Ear button while speaking; nothing is heard otherwise (useful in noisy rooms).",
-                    new AcceptableValueList<string>(ListenAutomatic, ListenPushToTalk)));
+                new ConfigDescription("Whisper only. Automatic (Tap to Toggle, like the original game): press the Ear button, speak, and the end of speech is detected. PushToTalk: hold the Ear button while speaking; nothing is heard otherwise (useful in noisy rooms). VoiceActivation: always listening while playing, no button needed; ignores the microphone while the game's own voice plays; headphones recommended.",
+                    new AcceptableValueList<string>(ListenAutomatic, ListenPushToTalk, ListenVoiceActivation)));
             MaxHoldSeconds = Config.Bind("Listening", "MaxHoldSeconds", 10f, "Push to talk: longest recording while the button is held.");
             RecordSessions = Config.Bind("Testing", "RecordSessions", false,
                 "Saves every Ear-button session (either recogniser) as a WAV plus what was recognised, in this plugin's recordings folder, so tests can be replayed through other models (tools\\replay). Recordings stay on this computer.");

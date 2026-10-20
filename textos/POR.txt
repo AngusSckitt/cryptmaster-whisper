@@ -3,7 +3,10 @@
 # Tom: o Whisper é uma alternativa/tentativa; nunca prometer desempenho melhor que o Reconhecimento de Fala do Windows.
 [SENTENCELOOKUP]/speechwarning01/AVISO: O modo de voz é uma opção de acessibilidade e desativa alguns recursos e conteúdos do jogo. Os requisitos a seguir são os do Reconhecimento de Fala do Windows, a opção nativa do jogo: um microfone, Windows 10 ou superior e o reconhecimento de fala online ativado no Windows (Configurações > Privacidade > Fala). O modo Whisper, alternativo, tenta implementar um recurso que já estava presente no jogo original, mas nunca foi usado. Aperte o botão da "Orelha" no jogo para detectar a fala.
 [MENUOPTION]/[SPEECHENGINE]/Reconhecimento de Fala/Windows (padrão; original),Whisper
-[MENUOPTION]/[SPEECHLISTEN]/Escuta do Whisper/Automática,Segurar para Falar
+[MENUOPTION]/[SPEECHLISTEN]/Escuta do Whisper/Tocar para Ativar,Segurar para Falar,Ativação por Voz
+[SENTENCELOOKUP]/whisperhinttap/Aperte o botão da Orelha (Ctrl) e fale: ele para de ouvir quando você termina de falar, como no jogo original.
+[SENTENCELOOKUP]/whisperhintpush/Segure o botão da Orelha (Ctrl) enquanto fala: fora isso, nada é ouvido, o que ajuda em lugares barulhentos.
+[SENTENCELOOKUP]/whisperhintvoice/Fica sempre ouvindo enquanto você joga, sem botão. Ignora a voz do próprio jogo, mas fones de ouvido são recomendados.
 [MENUOPTION]/[SPEECHBACKEND]/Hardware do Whisper/Auto (padrão),GPU (Vulkan),GPU (CUDA),CPU (Vulkan)
 [SENTENCELOOKUP]/whisperhintgpu/A GPU permite modelos maiores, que podem melhorar a precisão do reconhecimento.
 [SENTENCELOOKUP]/whisperhintcpu/A CPU costuma exigir modelos menores para compensar a latência, o que pode resultar numa precisão um pouco menor, mas ainda boa.

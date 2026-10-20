@@ -213,6 +213,26 @@ Hold the Ear button while speaking and let go when done. Most of these are noisy
 | S6-11 | sweep | sweep | quick tap: press and speak very briefly |
 | S6-12 | (nothing) | | other-voice: someone else says "guard" while you hold the button |
 
+## S6b — Whisper voice activation, English (Engine = Whisper, Mode = VoiceActivation, RecordSessions = true; game in English)
+
+No button: just speak. Most lines test what it should *not* pick up.
+
+| ID | Say | Accept | Emulate |
+|---|---|---|---|
+| S6b-01 | guard | guard | normal |
+| S6b-02 | berserk | berserk | normal |
+| S6b-03 | akupara | akupara | normal |
+| S6b-04 | jab | jab | soft |
+| S6b-05 | dismember | dismember | far |
+| S6b-06 | (nothing) | | game-talking: let the Cryptmaster speak a line through your speakers, say nothing |
+| S6b-07 | hit | hit | game-talking: say it right after the Cryptmaster finishes a line |
+| S6b-08 | (nothing) | | quiet, cough |
+| S6b-09 | (nothing) | | quiet, laugh |
+| S6b-10 | (nothing) | | talker: someone talking nearby for a few seconds |
+| S6b-11 | (nothing) | | typing: type on the keyboard for a few seconds |
+| S6b-12 | sweep | sweep | music-lyrics |
+| S6b-13 | Joro | joro | headphones: repeat S6b-06 and S6b-07 with headphones on |
+
 ## S7 — Portuguese (Engine = Windows, RecordSessions = true; game in Português)
 
 Windows recognises in Windows' own speech language. If that isn't Portuguese, Windows will do badly here.

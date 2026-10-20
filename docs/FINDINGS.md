@@ -75,8 +75,18 @@ timing only. The game was not running, so in-game times will be higher. Reproduc
 - **WSR availability**: in Whisper mode voice input is offered wherever there is a microphone, even when
   Windows' online speech is off.
 
-- **Push to talk** (`Listening.Mode = PushToTalk`, Whisper only): the utterance is exactly what's said while
-  the Ear button is held. Nothing is heard otherwise, so noise can't trigger it.
+- **Listening modes** (`Listening.Mode`, Whisper only; also Options > Voice > Whisper Listening):
+  - *Tap to Toggle* (`Automatic`, the default, like the original game, where Ctrl turns WSR on for a few
+    seconds): press the Ear button and speak; the session ends when speech stops.
+  - *Push to Talk*: the utterance is exactly what's said while the Ear button is held. Nothing is heard
+    otherwise, so noise can't trigger it.
+  - *Voice Activation*: always listening while playing (in game, window focused, no menu open, Voice Input
+    on), no button. Each detected utterance is recognised on its own. Whisper only runs on speech, so idle
+    cost is just reading the microphone, but the Windows microphone indicator stays on. Risks: the game's
+    own voice through speakers, other people, noise. Mitigations: the microphone is ignored while the game's
+    voice plays (`AudioManager.talkingSource`) and for 0.5 s after; utterances shorter than 0.3 s are
+    dropped; previews only after 0.5 s of speech; results with a high no-speech probability or under two
+    letters are ignored; headphones recommended in the fine print. Pressing Ear still starts a normal session.
 - **Per-language models** (`Model.PerLanguage`, by game language code, e.g. `POR=ggml-small-q5_1.bin`),
   for the game's own languages and any localisation mod's code.
 - **Test recording** (`Testing.RecordSessions`): every session as a WAV plus what was recognised, also in

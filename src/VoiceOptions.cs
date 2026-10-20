@@ -19,7 +19,7 @@ namespace CryptmasterWhisper
         internal const string ListenRow = "[SPEECHLISTEN]";
 
         private static GameOption _engine, _backend, _listen;
-        private static TextMeshProUGUI _hint;
+        private static TextMeshProUGUI _hint, _listenHint;
         private static readonly List<string> BackendKeys = new();
 
         internal static bool IsOurs(GameOption option) => option && (option.optionName == EngineRow || option.optionName == BackendRow || option.optionName == ListenRow);
@@ -51,8 +51,9 @@ namespace CryptmasterWhisper
             int at = list.allMenuOptions.IndexOf(speechOn);
             _engine = Clone(template, EngineRow, list, at + 1);
             _backend = Clone(withNote, BackendRow, list, at + 2);
-            _listen = Clone(template, ListenRow, list, at + 3);
+            _listen = Clone(withNote, ListenRow, list, at + 3);
             _hint = _backend.myWarningText;
+            _listenHint = _listen.myWarningText;
             if (Plugin.CompareLog.Value)
             {
                 Plugin.Log.LogInfo($"Options: added recogniser rows to the Voice tab (templates {template.optionName}, {withNote.optionName}; fine print: {(_hint ? "yes" : "no")}).");
@@ -153,10 +154,11 @@ namespace CryptmasterWhisper
             _backend.currentlySelectedOption = Mathf.Max(0, BackendKeys.IndexOf(Plugin.Backend.Value));
             SetValues(_backend, BackendKeys, labels);
 
-            _listen.currentlySelectedOption = Plugin.PushToTalk ? 1 : 0;
-            SetValues(_listen, new List<string> { Plugin.ListenAutomatic, Plugin.ListenPushToTalk },
-                new List<string> { Word(listen, 0, "Automatic"), Word(listen, 1, "Push to Talk") });
+            _listen.currentlySelectedOption = Plugin.VoiceActivation ? 2 : Plugin.PushToTalk ? 1 : 0;
+            SetValues(_listen, new List<string> { Plugin.ListenAutomatic, Plugin.ListenPushToTalk, Plugin.ListenVoiceActivation },
+                new List<string> { Word(listen, 0, "Tap to Toggle"), Word(listen, 1, "Push to Talk"), Word(listen, 2, "Voice Activation") });
             UpdateHint(save, restart: false);
+            UpdateListenHint(save);
         }
 
         private static void SetDescription(GameOption option, SaveManager.OptionsLookup lookup)
@@ -182,6 +184,17 @@ namespace CryptmasterWhisper
                 text += " " + save.ReturnLookup("sentence", "whisperhintrestart");
             }
             _hint.text = text;
+        }
+
+        /// <summary>The fine print under the listening row: what the selected mode does.</summary>
+        private static void UpdateListenHint(SaveManager save)
+        {
+            if (!_listenHint || !_listen)
+            {
+                return;
+            }
+            string[] keys = { "whisperhinttap", "whisperhintpush", "whisperhintvoice" };
+            _listenHint.text = save.ReturnLookup("sentence", keys[Mathf.Clamp(_listen.currentlySelectedOption, 0, 2)]);
         }
 
         // ---- Applying ----
@@ -218,7 +231,13 @@ namespace CryptmasterWhisper
                     }
                     break;
                 case ListenRow:
-                    Plugin.Listening.Value = option.currentlySelectedOption == 1 ? Plugin.ListenPushToTalk : Plugin.ListenAutomatic;
+                    Plugin.Listening.Value = option.currentlySelectedOption == 2 ? Plugin.ListenVoiceActivation : option.currentlySelectedOption == 1 ? Plugin.ListenPushToTalk : Plugin.ListenAutomatic;
+                    // Leaving Voice Activation: stop listening now (a running session ends on its own).
+                    if (!Plugin.VoiceActivation && VoiceSession.Instance.IsActive && !save.isDictationActive)
+                    {
+                        VoiceSession.Instance.End();
+                    }
+                    UpdateListenHint(save);
                     Plugin.Log.LogInfo($"Options: Whisper listening {Plugin.Listening.Value}.");
                     break;
             }

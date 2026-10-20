@@ -3,7 +3,10 @@
 # Tone: Whisper is an alternative/attempt; never promise better performance than Windows Speech Recognition.
 [SENTENCELOOKUP]/speechwarning01/WARNING: Voice mode is an accessibility option and will disable some gameplay features and content. The following requirements apply to Windows Speech Recognition, the game's native option: a microphone, Windows 10 or greater, and online speech detection enabled in Windows (Settings->Privacy->Speech, inking & typing). The alternative Whisper mode attempts to implement a feature that was already present in the original game but never used. Please press the "Ear" button in game to detect speech.
 [MENUOPTION]/[SPEECHENGINE]/Voice Recognition/Windows (default; vanilla),Whisper
-[MENUOPTION]/[SPEECHLISTEN]/Whisper Listening/Automatic,Push to Talk
+[MENUOPTION]/[SPEECHLISTEN]/Whisper Listening/Tap to Toggle,Push to Talk,Voice Activation
+[SENTENCELOOKUP]/whisperhinttap/Press the Ear button (Ctrl) and speak: it stops listening when you stop talking, like the original game.
+[SENTENCELOOKUP]/whisperhintpush/Hold the Ear button (Ctrl) while you speak: nothing is heard otherwise, which helps in noisy rooms.
+[SENTENCELOOKUP]/whisperhintvoice/Always listening while you play, no button needed. It ignores the game's own voice, but headphones are recommended.
 [MENUOPTION]/[SPEECHBACKEND]/Whisper Hardware/Auto (Default),GPU (Vulkan),GPU (CUDA),CPU (Vulkan)
 [SENTENCELOOKUP]/whisperhintgpu/GPU allows for larger models which might improve recognition accuracy.
 [SENTENCELOOKUP]/whisperhintcpu/CPU tends to require smaller models to make up for latency, which might result in somewhat lower - but still good - recognition accuracy.
