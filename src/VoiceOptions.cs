@@ -19,7 +19,7 @@ namespace CryptmasterWhisper
         internal const string ListenRow = "[SPEECHLISTEN]";
 
         private static GameOption _engine, _backend, _listen;
-        private static TextMeshProUGUI _hint, _listenHint;
+        private static TextMeshProUGUI _hint, _listenHint, _engineHint;
         private static readonly List<string> BackendKeys = new();
 
         internal static bool IsOurs(GameOption option) => option && (option.optionName == EngineRow || option.optionName == BackendRow || option.optionName == ListenRow);
@@ -49,11 +49,12 @@ namespace CryptmasterWhisper
             // The hardware row needs a line of fine print: clone a row that has a warning text, if any.
             GameOption withNote = list.allMenuOptions.FirstOrDefault(o => o.myWarningText && o.mySlider) ?? template;
             int at = list.allMenuOptions.IndexOf(speechOn);
-            _engine = Clone(template, EngineRow, list, at + 1);
+            _engine = Clone(withNote, EngineRow, list, at + 1);
             _backend = Clone(withNote, BackendRow, list, at + 2);
             _listen = Clone(withNote, ListenRow, list, at + 3);
             _hint = _backend.myWarningText;
             _listenHint = _listen.myWarningText;
+            _engineHint = _engine.myWarningText;
             if (Plugin.CompareLog.Value)
             {
                 Plugin.Log.LogInfo($"Options: added recogniser rows to the Voice tab (templates {template.optionName}, {withNote.optionName}; fine print: {(_hint ? "yes" : "no")}).");
@@ -159,6 +160,7 @@ namespace CryptmasterWhisper
                 new List<string> { Word(listen, 0, "Tap to Toggle"), Word(listen, 1, "Push to Talk"), Word(listen, 2, "Voice Activation") });
             UpdateHint(save, restart: false);
             UpdateListenHint(save);
+            UpdateEngineHint(save);
         }
 
         private static void SetDescription(GameOption option, SaveManager.OptionsLookup lookup)
@@ -184,6 +186,8 @@ namespace CryptmasterWhisper
                 text += " " + save.ReturnLookup("sentence", "whisperhintrestart");
             }
             _hint.text = text;
+            // The game rewrites every row's warning from its key when the menu opens: keep ours as the key.
+            _backend.warningText = gpu ? "whisperhintgpu" : "whisperhintcpu";
         }
 
         /// <summary>The fine print under the listening row: what the selected mode does.</summary>
@@ -194,7 +198,19 @@ namespace CryptmasterWhisper
                 return;
             }
             string[] keys = { "whisperhinttap", "whisperhintpush", "whisperhintvoice" };
-            _listenHint.text = save.ReturnLookup("sentence", keys[Mathf.Clamp(_listen.currentlySelectedOption, 0, 2)]);
+            _listen.warningText = keys[Mathf.Clamp(_listen.currentlySelectedOption, 0, 2)];
+            _listenHint.text = save.ReturnLookup("sentence", _listen.warningText);
+        }
+
+        /// <summary>The fine print under the recogniser row: what the selected recogniser is.</summary>
+        private static void UpdateEngineHint(SaveManager save)
+        {
+            if (!_engineHint || !_engine)
+            {
+                return;
+            }
+            _engine.warningText = _engine.currentlySelectedOption == 1 ? "whisperhintwhisper" : "whisperhintwindows";
+            _engineHint.text = save.ReturnLookup("sentence", _engine.warningText);
         }
 
         // ---- Applying ----
@@ -216,6 +232,7 @@ namespace CryptmasterWhisper
                         save.CloseDictationEngine(_doesDispose: false);
                     }
                     SpeechSupportPatch.Refresh(save);
+                    UpdateEngineHint(save);
                     // Show or hide the Whisper rows straight away.
                     menu.SetupBannedOptionsLists();
                     menu.LoadOptionsSelector(menu.currOptionsList, _doesResetPos: false);

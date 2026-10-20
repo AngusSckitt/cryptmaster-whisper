@@ -169,6 +169,34 @@ uninstaller removes only what the installer added (`added-by-installer.txt`) plu
 Note: Inno Setup merges uninstall records across reinstalls with the same AppId. An early test build had a
 "delete the whole plugin folder" rule; it never shipped, but a test folder installed with it keeps that rule.
 
+## First real-speech test (2026-10-20)
+
+Recordings of real people from Google's Speech Commands test set (CC BY 4.0, single words: yes, no, up,
+down, left, right, on, off, stop, go), fed through `Testing.FakeMicrophone` (the mod's test-only stand-in
+for the microphone: everything from speech detection onwards is the real path) inside the running game,
+on the RTX 4070 SUPER with large-v3-turbo (Vulkan), language forced to English, vocabulary prompt off.
+50 clips: 4 per word from different speakers, plus 10 background-noise clips that should produce nothing.
+
+| Mode | Correct (of 40) | Missed | False activations (of 10 noise clips) | Time per word |
+|---|---|---|---|---|
+| Voice Activation, before the fix below | 0 | 4 | 0 | ~110–170 ms |
+| Voice Activation | 31 | 0 | 1 | ~100–150 ms |
+| Tap to Toggle | 32 | 0 | 1 | similar |
+| Push to Talk | 32 | 0 | 2 (button held through noise) | similar |
+
+- **Whisper repeats short words** until it runs out of tokens ("Right. Right. Right..."): every result was
+  wrong before the fix. Fixed by collapsing repeats (`Vocabulary.CollapseRepeats`) and capping output at
+  12 tokens.
+- The remaining errors are mostly near-misses on short, noisy crowd-sourced clips: up → cup/ab/tab, on →
+  an/honour, left → let/last, off → "ass", no → gnome. Matching to the words the game accepts would fix
+  most of them.
+- Whisper invents stock phrases in noise ("I'm going to go to the church / the next one"). Results with
+  more than 18 letters per second of audio are now dropped; Voice Activation also shows no provisional
+  previews, so a made-up phrase can't be typed while it's being recognised.
+- The in-game menu rows (recogniser, hardware with measured times, listening mode, fine print for each)
+  were checked on screen in Portuguese: the Whisper rows hide and reappear when the recogniser changes,
+  and the fine print follows the selection.
+
 ## Open questions (to test with real speech)
 
 - How accurate tiny is on the game's words in each language, compared with Windows (the `[voice]` lines in

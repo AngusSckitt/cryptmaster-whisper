@@ -43,6 +43,7 @@ namespace CryptmasterWhisper
         internal static ConfigEntry<string> Listening;
         internal static ConfigEntry<float> MaxHoldSeconds;
         internal static ConfigEntry<bool> RecordSessions;
+        internal static ConfigEntry<string> FakeMicrophone;
 
         internal static bool UseWhisper => Engine.Value == EngineWhisper;
         internal static bool PushToTalk => Listening.Value == ListenPushToTalk;
@@ -99,6 +100,8 @@ namespace CryptmasterWhisper
             RecordSessions = Config.Bind("Testing", "RecordSessions", false,
                 "Saves every Ear-button session (either recogniser) as a WAV plus what was recognised, in this plugin's recordings folder, so tests can be replayed through other models (tools\\replay). Recordings stay on this computer.");
 
+            FakeMicrophone = Config.Bind("Testing", "FakeMicrophone", "", "TESTING ONLY. A playlist file (path|expected word per line) of recordings of real people, fed in place of the microphone. Leave empty to use the microphone.");
+            CryptmasterWhisper.FakeMicrophone.Load();
             Texts.Load(Path.Combine(Folder, "textos"));
             new Harmony(PluginGuid).PatchAll(typeof(Plugin).Assembly);
 

@@ -24,6 +24,8 @@ namespace CryptmasterWhisper
         private static readonly Dictionary<string, WhisperWrapper> Models = new(StringComparer.OrdinalIgnoreCase);
         private static readonly object Lock = new();
         private static IntPtr _promptPtr = IntPtr.Zero;
+        // A command is a word or a few: more tokens than this is Whisper repeating itself.
+        private const int MaxTokens = 12;
 
         internal static string SystemInfo()
         {
@@ -280,7 +282,7 @@ namespace CryptmasterWhisper
                 {
                     float[] audio16k = To16k(samples, frequency);
                     var watch = Stopwatch.StartNew();
-                    string text = _native.Transcribe(ctx, audio16k, language, prompt, audioCtx, threads, 24, temperatureInc, out float noSpeech);
+                    string text = _native.Transcribe(ctx, audio16k, language, prompt, audioCtx, threads, MaxTokens, temperatureInc, out float noSpeech);
                     return new Result { Text = text, InferenceMs = watch.ElapsedMilliseconds, AudioSeconds = seconds, IsFinal = isFinal, NoSpeech = noSpeech };
                 }
             }
@@ -301,7 +303,7 @@ namespace CryptmasterWhisper
             param.SingleSegment = true;
             param.AudioCtx = audioCtx;
             param._param.no_timestamps = true;
-            param._param.max_tokens = 24;
+            param._param.max_tokens = MaxTokens;
             param._param.suppress_non_speech_tokens = true;
             param._param.temperature_inc = temperatureInc;
             lock (Lock)

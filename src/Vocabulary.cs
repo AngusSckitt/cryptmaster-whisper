@@ -53,7 +53,7 @@ namespace CryptmasterWhisper
                     b.Append(' ');
                 }
             }
-            string cleaned = b.ToString().Trim();
+            string cleaned = CollapseRepeats(b.ToString().Trim());
             if (cleaned.Length == 0)
             {
                 return "";
@@ -64,6 +64,40 @@ namespace CryptmasterWhisper
                 return "";
             }
             return cleaned;
+        }
+
+        /// <summary>
+        /// On short clips Whisper often repeats what it heard until it runs out of tokens ("right. right.
+        /// right..."), sometimes cutting the last repeat short. Keeps one copy: of a repeated block of words
+        /// if the whole text is that block over and over, otherwise of each run of the same word.
+        /// </summary>
+        internal static string CollapseRepeats(string text)
+        {
+            string[] words = text.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            int n = words.Length;
+            for (int block = 1; block <= n / 2; block++)
+            {
+                bool repeats = true;
+                for (int i = block; i < n && repeats; i++)
+                {
+                    string expected = words[i % block];
+                    // The final copy may be truncated ("honour honour hon").
+                    repeats = i == n - 1 ? expected.StartsWith(words[i]) : words[i] == expected;
+                }
+                if (repeats)
+                {
+                    return string.Join(" ", words, 0, block);
+                }
+            }
+            var kept = new List<string>();
+            foreach (string word in words)
+            {
+                if (kept.Count == 0 || kept[kept.Count - 1] != word)
+                {
+                    kept.Add(word);
+                }
+            }
+            return string.Join(" ", kept);
         }
 
         private static bool IsKnownWord(string word, SaveManager save)

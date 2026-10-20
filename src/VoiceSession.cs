@@ -56,6 +56,8 @@ namespace CryptmasterWhisper
         private SessionRecorder.Entry _record;
         private SaveManager _cachedSave;
         private float _nextActivationCheck;
+        private bool _fake;            // Testing.FakeMicrophone: recorded clips instead of the microphone
+        private float _nextFakePress;
 
         private void Awake() => Instance = this;
 
@@ -82,15 +84,25 @@ namespace CryptmasterWhisper
             {
                 return true;
             }
-            if (Microphone.devices.Length == 0)
+            _fake = FakeMicrophone.Enabled;
+            if (_fake)
             {
-                Plugin.Log.LogWarning("Whisper: no microphone found.");
-                return false;
+                _frequency = PreferredFrequency;
+                FakeMicrophone.Start(_frequency);
+                _clip = null;
             }
-            Microphone.GetDeviceCaps(null, out int min, out int max);
-            _frequency = max == 0 ? PreferredFrequency : Mathf.Clamp(PreferredFrequency, min, max);
-            int bufferSeconds = Mathf.CeilToInt(Mathf.Max(Plugin.MaxHoldSeconds.Value, Plugin.MaxUtteranceSeconds.Value, Plugin.InitialSilenceSeconds.Value)) + 5;
-            _clip = Microphone.Start(null, true, Mathf.Clamp(bufferSeconds, 10, 60), _frequency);
+            else
+            {
+                if (Microphone.devices.Length == 0)
+                {
+                    Plugin.Log.LogWarning("Whisper: no microphone found.");
+                    return false;
+                }
+                Microphone.GetDeviceCaps(null, out int min, out int max);
+                _frequency = max == 0 ? PreferredFrequency : Mathf.Clamp(PreferredFrequency, min, max);
+                int bufferSeconds = Mathf.CeilToInt(Mathf.Max(Plugin.MaxHoldSeconds.Value, Plugin.MaxUtteranceSeconds.Value, Plugin.InitialSilenceSeconds.Value)) + 5;
+                _clip = Microphone.Start(null, true, Mathf.Clamp(bufferSeconds, 10, 60), _frequency);
+            }
             _save = save;
             _continuous = continuous;
             _generation++;
@@ -148,7 +160,10 @@ namespace CryptmasterWhisper
             {
                 ReadMicrophone(); // the last few frames
             }
-            Microphone.End(null);
+            if (!_fake)
+            {
+                Microphone.End(null);
+            }
             SaveRecord();
             if (!recordOnly)
             {
@@ -219,6 +234,10 @@ namespace CryptmasterWhisper
             {
                 return false;
             }
+            if (_fake)
+            {
+                return FakeMicrophone.Holding;
+            }
             if (game.myTestBot && game.myTestBot.useRewired && game.rewiredControl != null)
             {
                 return game.rewiredControl.GetButton("hear");
@@ -287,7 +306,15 @@ namespace CryptmasterWhisper
             _preRoll.Clear();
             _busy = _finalPending = false;
             _generation++;
-            _readPosition = _clip ? Microphone.GetPosition(null) : 0; // skip what was heard while recognising
+            // Skip what was heard while recognising.
+            if (_fake)
+            {
+                FakeMicrophone.Skip();
+            }
+            else
+            {
+                _readPosition = _clip ? Microphone.GetPosition(null) : 0;
+            }
         }
 
         // ---- Every frame ----
@@ -296,6 +323,7 @@ namespace CryptmasterWhisper
         {
             DeliverResults();
             ManageVoiceActivation();
+            PressEarForTests();
             if (!IsActive)
             {
                 return;
@@ -306,15 +334,16 @@ namespace CryptmasterWhisper
             {
                 case State.Waiting when !_continuous && now - _sessionStart > Plugin.InitialSilenceSeconds.Value:
                     Plugin.Log.LogInfo("Whisper: no speech heard.");
+                    if (_fake) FakeMicrophone.Score("");
                     _save.CloseDictationEngine(_doesDispose: false);
                     break;
                 case State.Speaking when _pushToTalk ? !EarButtonHeld() || now - _speechStart >= Plugin.MaxHoldSeconds.Value
                                                      : now - _lastVoice >= Plugin.EndSilenceSeconds.Value || now - _speechStart >= Plugin.MaxUtteranceSeconds.Value:
                     FinishUtterance(now);
                     break;
-                // Previews; in Voice Activation only once it's clearly speech, so noises don't type anything.
-                case State.Speaking when !_busy && Plugin.PartialIntervalSeconds.Value > 0f
-                    && now - _lastPartial >= Plugin.PartialIntervalSeconds.Value && now - _speechStart > (_continuous ? 0.5f : 0.3f):
+                // Voice Activation shows no previews: nobody asked to be heard, so only a final, filtered result is typed.
+                case State.Speaking when !_busy && !_continuous && Plugin.PartialIntervalSeconds.Value > 0f
+                    && now - _lastPartial >= Plugin.PartialIntervalSeconds.Value && now - _speechStart > 0.3f:
                     _lastPartial = now;
                     Recognise(isFinal: false);
                     break;
@@ -325,7 +354,7 @@ namespace CryptmasterWhisper
         {
             _state = State.Finishing;
             _speechEnd = now;
-            if (!_continuous)
+            if (!_continuous && !_fake)
             {
                 Microphone.End(null); // nothing more to hear in this session
             }
@@ -333,6 +362,7 @@ namespace CryptmasterWhisper
             if (_utterance.Count < _frequency * minimum)
             {
                 Plugin.Log.LogInfo("Whisper: too short to recognise.");
+                if (_fake && !_continuous) FakeMicrophone.Score("");
                 if (_continuous)
                 {
                     ResetToWaiting();
@@ -354,6 +384,14 @@ namespace CryptmasterWhisper
 
         private void ReadMicrophone()
         {
+            if (_fake)
+            {
+                if (_state != State.Finishing)
+                {
+                    Feed(FakeMicrophone.Read());
+                }
+                return;
+            }
             if (_clip == null || _state == State.Finishing)
             {
                 return;
@@ -382,6 +420,11 @@ namespace CryptmasterWhisper
                 }
             }
             _readPosition = position;
+            Feed(buffer);
+        }
+
+        private void Feed(float[] buffer)
+        {
             if (_record != null)
             {
                 _sessionAudio.AddRange(buffer);
@@ -506,6 +549,13 @@ namespace CryptmasterWhisper
                 _busy = false;
                 WhisperEngine.Result result = item.result;
                 string text = Vocabulary.Clean(result.Text, _save);
+                // More letters than anyone can say in that much audio: a stock phrase Whisper made up ("I'm going
+                // to go to the church..."), not what was said. A fast "archipelago" is about 11 letters a second.
+                if (text != "" && result.AudioSeconds > 0.5f && text.Replace(" ", "").Length / result.AudioSeconds > 18f)
+                {
+                    Plugin.Log.LogInfo($"Whisper: ignored '{result.Text.Trim()}' (too many letters for {result.AudioSeconds:0.0} s of speech).");
+                    text = "";
+                }
                 // Voice Activation: nobody pressed anything, so be stricter about what counts as a word.
                 if (_continuous && text != "" && (text.Replace(" ", "").Length < 2 || result.NoSpeech > 0.6f))
                 {
@@ -540,6 +590,7 @@ namespace CryptmasterWhisper
                 if (result.IsFinal)
                 {
                     WhisperEngine.RecordLatency(result.InferenceMs);
+                    if (_fake) FakeMicrophone.Score(text);
                     if (_continuous)
                     {
                         ResetToWaiting();
@@ -554,6 +605,23 @@ namespace CryptmasterWhisper
                     _finalPending = false;
                     Recognise(isFinal: true);
                 }
+            }
+        }
+
+        /// <summary>Testing.FakeMicrophone in Tap to Toggle / Push to Talk: presses the Ear button (through the
+        /// game's own StartSpeech, like the real button) whenever idle, until the playlist is done.</summary>
+        private void PressEarForTests()
+        {
+            if (!FakeMicrophone.Enabled || FakeMicrophone.Finished || Plugin.VoiceActivation || IsActive || Time.unscaledTime < _nextFakePress)
+            {
+                return;
+            }
+            _nextFakePress = Time.unscaledTime + 1f;
+            SaveManager save = FindSave();
+            GameManager game = save ? save.myGameManager : null;
+            if (Plugin.UseWhisper && game && game.MainGameState == 1 && !game.myMenuManager.isOptionsActive && save.doesUseSpeech)
+            {
+                save.StartSpeech(_doesStart: true);
             }
         }
 

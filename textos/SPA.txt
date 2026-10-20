@@ -4,6 +4,8 @@
 [SENTENCELOOKUP]/speechwarning01/AVISO: El modo voz es una opción de accesibilidad que desactiva algunas funciones y contenidos del juego. Los siguientes requisitos corresponden al Reconocimiento de voz de Windows, la opción nativa del juego: un micrófono, Windows 10 o superior y el reconocimiento de voz en línea activado en Windows (Configuración > Privacidad > Voz). El modo Whisper, alternativo, intenta implementar una función que ya estaba presente en el juego original, pero que nunca llegó a usarse. Pulsa el botón de la oreja en el juego para detectar la voz.
 [MENUOPTION]/[SPEECHENGINE]/Reconocimiento de Voz/Windows (predeterminado; original),Whisper
 [MENUOPTION]/[SPEECHLISTEN]/Escucha de Whisper/Pulsar para Activar,Mantener para Hablar,Activación por Voz
+[SENTENCELOOKUP]/whisperhintwindows/Reconocimiento de voz de Windows: el reconocedor del propio juego (predeterminado; original). Necesita el reconocimiento de voz en línea de Windows: consulta el aviso de arriba.
+[SENTENCELOOKUP]/whisperhintwhisper/Whisper: el reconocedor de este mod. Funciona por completo en este ordenador y sigue el idioma del juego.
 [SENTENCELOOKUP]/whisperhinttap/Pulsa el botón de la oreja (Ctrl) y habla: deja de escuchar cuando terminas de hablar, como en el juego original.
 [SENTENCELOOKUP]/whisperhintpush/Mantén pulsado el botón de la oreja (Ctrl) mientras hablas: si no, no oye nada, lo que ayuda en sitios ruidosos.
 [SENTENCELOOKUP]/whisperhintvoice/Escucha siempre mientras juegas, sin botón. Ignora la voz del propio juego, pero se recomiendan auriculares.
