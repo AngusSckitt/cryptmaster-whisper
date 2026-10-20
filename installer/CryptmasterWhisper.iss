@@ -662,6 +662,165 @@ begin
   if CpuPick > 0 then WizardSelectComponents(ModelComponent(CpuPick));
 end;
 
+// ---- An existing installation: replace it, or remove it ----
+
+const
+  UninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{6F1B2C3D-8E4A-4C7B-9D2E-5A1F0C9B7E21}_is1';
+
+var
+  ExistingPage: TInputOptionWizardPage;
+  ExistingKind: Integer;            // 0 none, 1 installed by this installer, 2 installed by hand (zip or build)
+  ExistingDir, ExistingVersion, ExistingUninstaller: String;
+  CloseQuietly: Boolean;
+
+function ReadUninstallValue(Name: String; var Value: String): Boolean;
+begin
+  Result := RegQueryStringValue(HKCU, UninstallKey, Name, Value) or RegQueryStringValue(HKLM, UninstallKey, Name, Value);
+end;
+
+function RegisteredInstallExists: Boolean;
+var
+  Uninstaller: String;
+begin
+  Result := ReadUninstallValue('UninstallString', Uninstaller) and FileExists(RemoveQuotes(Uninstaller));
+end;
+
+procedure DetectExisting;
+var
+  Location: String;
+begin
+  ExistingKind := 0;
+  if RegisteredInstallExists then
+  begin
+    ExistingKind := 1;
+    ReadUninstallValue('UninstallString', ExistingUninstaller);
+    ExistingUninstaller := RemoveQuotes(ExistingUninstaller);
+    if not ReadUninstallValue('DisplayVersion', ExistingVersion) then ExistingVersion := '?';
+    if ReadUninstallValue('InstallLocation', Location) then ExistingDir := RemoveBackslashUnlessRoot(Location)
+    else ExistingDir := ExtractFileDir(ExistingUninstaller);
+  end
+  // Installed by hand: only looked for in the folder this installer is pointed at.
+  else if FileExists(PluginDir + '\CryptmasterWhisper.dll') then
+  begin
+    ExistingKind := 2;
+    ExistingDir := RemoveBackslashUnlessRoot(GameDir);
+  end;
+end;
+
+var
+  ManualLogFile: String;
+
+procedure Note(S: String);
+begin
+  EventLog(S);
+  SaveStringToFile(ManualLogFile, GetDateTimeString('yyyy-mm-dd hh:nn:ss.zzz', '-', ':') + '  ' + S + #13#10, True);
+end;
+
+// Removes a hand-installed copy: only the mod's own files, never models, recordings, logs or settings.
+procedure RemoveManualInstall;
+var
+  Plugin: String;
+  I: Integer;
+  Own: array[0..7] of String;
+begin
+  Plugin := AddBackslash(ExistingDir) + '{#PluginSub}';
+  ForceDirectories(Plugin + '\logs');
+  ManualLogFile := Plugin + '\logs\uninstall-' + GetDateTimeString('yyyymmdd-hhnnss', '-', ':') + '.log';
+  Note('Uninstall started (installed by hand): Cryptmaster Whisper, in ' + ExistingDir);
+  Own[0] := 'CryptmasterWhisper.dll'; Own[1] := 'CryptmasterWhisper.pdb'; Own[2] := 'LICENSE';
+  Own[3] := 'THIRD-PARTY-NOTICES.txt'; Own[4] := 'README.md'; Own[5] := 'models\README.txt';
+  Own[6] := 'native\vulkan'; Own[7] := 'textos';
+  for I := 0 to 7 do
+    if DirExists(Plugin + '\' + Own[I]) then
+    begin
+      DelTree(Plugin + '\' + Own[I], True, True, True);
+      Note('Removed: ' + Own[I] + '\');
+    end
+    else if FileExists(Plugin + '\' + Own[I]) then
+    begin
+      DeleteFile(Plugin + '\' + Own[I]);
+      Note('Removed: ' + Own[I]);
+    end;
+  RemoveDir(Plugin + '\native');
+  RemoveDir(Plugin + '\models');
+  Note('Kept: models, recordings, logs, settings, any CUDA folder, BepInEx and anything else that was here.');
+  Note('Uninstall finished.');
+end;
+
+// Inno's uninstaller relaunches itself from a temporary copy (_iu*.tmp), so its first process may end
+// straight away: wait while that copy runs.
+function UninstallerRunning: Boolean;
+var
+  Locator, Service, Items: Variant;
+begin
+  Result := False;
+  try
+    Locator := CreateOleObject('WbemScripting.SWbemLocator');
+    Service := Locator.ConnectServer('.', 'root\CIMV2');
+    Items := Service.ExecQuery('SELECT ProcessId FROM Win32_Process WHERE Name LIKE ''\_iu%.tmp''');
+    Result := Items.Count > 0;
+  except
+    Result := False;
+  end;
+end;
+
+// Runs the registered uninstaller (its own window and confirmation); True if it actually uninstalled.
+function RunRegisteredUninstaller: Boolean;
+var
+  Code, Waited: Integer;
+begin
+  Result := False;
+  EventLog('Running the existing uninstaller: ' + ExistingUninstaller);
+  if not Exec(ExistingUninstaller, '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, Code) then Exit;
+  Waited := 0;
+  // Done when its uninstall entry is gone; cancelled when its process ended and the entry is still there.
+  while RegisteredInstallExists and (Waited < 3600) do
+  begin
+    Sleep(500);
+    Waited := Waited + 1;
+    if (Waited > 4) and not UninstallerRunning then Break;
+  end;
+  Result := not RegisteredInstallExists;
+  if Result then EventLog('Existing installation removed.') else EventLog('Existing installation not removed (uninstall cancelled or failed).');
+end;
+
+function ExistingPageNext: Boolean;
+begin
+  Result := True;
+  if ExistingPage.SelectedValueIndex = 0 then
+  begin
+    EventLog('Existing installation: replacing it (models, recordings, logs and settings are kept).');
+    if ExistingKind = 1 then WizardForm.DirEdit.Text := ExistingDir;
+    Exit;
+  end;
+  EventLog('Existing installation: removing it.');
+  if ExistingKind = 1 then
+  begin
+    if RunRegisteredUninstaller then
+    begin
+      MsgBox(Msg('ExistRemoved'), mbInformation, MB_OK);
+      CloseQuietly := True;
+      WizardForm.Close;
+    end
+    else
+      MsgBox(Msg('ExistNotRemoved'), mbInformation, MB_OK);
+    Result := False;
+  end
+  else
+  begin
+    RemoveManualInstall;
+    MsgBox(Msg('ExistRemoved'), mbInformation, MB_OK);
+    CloseQuietly := True;
+    WizardForm.Close;
+    Result := False;
+  end;
+end;
+
+procedure CancelButtonClick(CurPageID: Integer; var Cancel, Confirm: Boolean);
+begin
+  Confirm := not CloseQuietly;
+end;
+
 // ---- Pages ----
 
 procedure CreateCudaNote; forward;
@@ -689,6 +848,17 @@ begin
   LiveLog.Font.Name := 'Consolas';
   LiveLog.Font.Size := 8;
   EventLog('Setup started: Cryptmaster Whisper {#AppVersion}, language ' + ActiveLanguage + ', ' + GetWindowsVersionString + '.');
+  // First page: an existing installation (skipped when there's none).
+  DetectExisting;
+  ExistingPage := CreateInputOptionPage(wpWelcome, Msg('ExistTitle'), '', '', True, False);
+  if ExistingKind = 1 then ExistingPage.SubCaptionLabel.Caption := Fmt('ExistRegistered', [ExistingVersion, ExistingDir])
+  else ExistingPage.SubCaptionLabel.Caption := Fmt('ExistManual', [ExistingDir]);
+  ExistingPage.Add(Msg('ExistReplace'));
+  ExistingPage.Add(Msg('ExistRemove'));
+  ExistingPage.SelectedValueIndex := 0;
+  if ExistingKind = 1 then EventLog('Already installed (by this installer): version ' + ExistingVersion + ' in ' + ExistingDir)
+  else if ExistingKind = 2 then EventLog('Already installed (by hand) in ' + ExistingDir)
+  else EventLog('No existing installation found.');
 end;
 
 procedure UpdateCudaNote(Sender: TObject);
@@ -828,7 +998,7 @@ end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
-  Result := ((PageID = CudaPage.ID) and not WizardIsComponentSelected('cuda'))
+  Result := ((PageID = ExistingPage.ID) and (ExistingKind = 0)) or ((PageID = CudaPage.ID) and not WizardIsComponentSelected('cuda'))
     or ((PageID = FoundPage.ID) and (FoundCount = 0))
     or ((PageID = FoundPage2.ID) and (FoundCount <= 4));
 end;
@@ -848,6 +1018,11 @@ var
   Any: Boolean;
 begin
   Result := True;
+  if CurPageID = ExistingPage.ID then
+  begin
+    Result := ExistingPageNext;
+    Exit;
+  end;
   if CurPageID = wpSelectDir then
   begin
     if not IsGameDir(WizardDirValue) then
@@ -1137,7 +1312,7 @@ begin
   if EventLines <> nil then
     for I := 0 to EventLines.Count - 1 do
       SaveStringToFile(EventLogFile, EventLines[I] + #13#10, True);
-  AddedFiles.Add('logs');
+  // The logs folder isn't recorded for the uninstaller: logs survive an uninstall.
   EventLog('Event log: ' + EventLogFile);
 end;
 
@@ -1215,22 +1390,59 @@ end;
 
 // ---- Uninstalling: only what this installer added ----
 
+var
+  UninstallLogFile: String;
+
+// The uninstaller's own timestamped log, next to the install logs (which it never deletes).
+procedure UninstallLog(S: String);
+var
+  Line: String;
+begin
+  Log(S);
+  if UninstallLogFile = '' then
+  begin
+    ForceDirectories(ExpandConstant('{app}\{#PluginSub}\logs'));
+    UninstallLogFile := ExpandConstant('{app}\{#PluginSub}\logs\uninstall-') + GetDateTimeString('yyyymmdd-hhnnss', '-', ':') + '.log';
+  end;
+  Line := GetDateTimeString('yyyy-mm-dd hh:nn:ss.zzz', '-', ':') + '  ' + S;
+  SaveStringToFile(UninstallLogFile, Line + #13#10, True);
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Lines: TArrayOfString;
   I: Integer;
-  Plugin, Path: String;
+  Plugin, Path, Item: String;
 begin
-  if CurUninstallStep <> usPostUninstall then Exit;
   Plugin := ExpandConstant('{app}\{#PluginSub}');
+  if CurUninstallStep = usUninstall then
+  begin
+    UninstallLog('Uninstall started: Cryptmaster Whisper, in ' + ExpandConstant('{app}'));
+    UninstallLog('Removing the mod''s own installed files (the ones this installer copied)...');
+    Exit;
+  end;
+  if CurUninstallStep <> usPostUninstall then Exit;
   if LoadStringsFromFile(Plugin + '\' + AddedListName, Lines) then
     for I := 0 to GetArrayLength(Lines) - 1 do
     begin
-      Path := Plugin + '\' + Trim(Lines[I]);
-      if Trim(Lines[I]) = '' then Continue;
-      if DirExists(Path) then DelTree(Path, True, True, True) else DeleteFile(Path);
+      Item := Trim(Lines[I]);
+      // Logs always survive an uninstall (an older install may have listed them).
+      if (Item = '') or (CompareText(Item, 'logs') = 0) then Continue;
+      Path := Plugin + '\' + Item;
+      if DirExists(Path) then
+      begin
+        DelTree(Path, True, True, True);
+        UninstallLog('Removed (added by the installer): ' + Item + '\');
+      end
+      else if FileExists(Path) then
+      begin
+        DeleteFile(Path);
+        UninstallLog('Removed (added by the installer): ' + Item);
+      end;
     end;
   DeleteFile(Plugin + '\' + AddedListName);
+  UninstallLog('Kept: the logs folder, settings, BepInEx, and anything that was already here before installing.');
+  UninstallLog('Uninstall finished.');
   // Remove folders only if they're now empty (anything else in them was someone else's).
   RemoveDir(Plugin + '\models');
   RemoveDir(Plugin + '\native\cuda');

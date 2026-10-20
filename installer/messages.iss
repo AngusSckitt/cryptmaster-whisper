@@ -31,6 +31,29 @@ english.CudaNoteLabel=CUDA selected: additional information on the next page.
 spanish.CudaNoteLabel=CUDA seleccionado: más información en la página siguiente.
 brazilianportuguese.CudaNoteLabel=CUDA selecionado: mais informações na próxima página.
 
+; ---- An existing installation ----
+english.ExistTitle=Cryptmaster Whisper is already installed
+spanish.ExistTitle=Cryptmaster Whisper ya está instalado
+brazilianportuguese.ExistTitle=O Cryptmaster Whisper já está instalado
+english.ExistRegistered=Version %1 is installed in %2. What would you like to do?
+spanish.ExistRegistered=La versión %1 está instalada en %2. ¿Qué quieres hacer?
+brazilianportuguese.ExistRegistered=A versão %1 está instalada em %2. O que você quer fazer?
+english.ExistManual=A copy installed by hand (from the zip, or a build) is in %1. What would you like to do?
+spanish.ExistManual=Hay una copia instalada a mano (desde el zip o una compilación) en %1. ¿Qué quieres hacer?
+brazilianportuguese.ExistManual=Há uma cópia instalada à mão (pelo zip ou por uma compilação) em %1. O que você quer fazer?
+english.ExistReplace=Replace it: update or reinstall (models, recordings, logs and settings are kept)
+spanish.ExistReplace=Sustituirla: actualizar o reinstalar (se conservan modelos, grabaciones, registros y ajustes)
+brazilianportuguese.ExistReplace=Substituir: atualizar ou reinstalar (modelos, gravações, registros e configurações são mantidos)
+english.ExistRemove=Remove it: uninstall Cryptmaster Whisper (the logs, settings and anything that was there before it are kept)
+spanish.ExistRemove=Quitarla: desinstalar Cryptmaster Whisper (se conservan los registros, los ajustes y lo que ya estaba antes)
+brazilianportuguese.ExistRemove=Remover: desinstalar o Cryptmaster Whisper (os registros, as configurações e o que já estava lá antes são mantidos)
+english.ExistRemoved=Cryptmaster Whisper has been removed. Its logs are in the mod's logs folder. Setup will now close.
+spanish.ExistRemoved=Se ha quitado Cryptmaster Whisper. Sus registros están en la carpeta logs del mod. El instalador se cerrará ahora.
+brazilianportuguese.ExistRemoved=O Cryptmaster Whisper foi removido. Os registros estão na pasta logs do mod. O instalador vai fechar agora.
+english.ExistNotRemoved=Cryptmaster Whisper wasn't removed (the uninstaller was cancelled or failed). You can choose again.
+spanish.ExistNotRemoved=No se ha quitado Cryptmaster Whisper (se canceló o falló el desinstalador). Puedes volver a elegir.
+brazilianportuguese.ExistNotRemoved=O Cryptmaster Whisper não foi removido (o desinstalador foi cancelado ou falhou). Você pode escolher de novo.
+
 ; ---- Folder ----
 english.NotGameDir=CryptMaster.exe was not found in this folder. Please choose your Cryptmaster game folder.
 spanish.NotGameDir=No se ha encontrado CryptMaster.exe en esta carpeta. Elige la carpeta del juego Cryptmaster.
