@@ -723,6 +723,12 @@ begin
   if not SetIniString(Section, Key, Value, ConfigFile) then Log('Could not write the setting ' + Section + '.' + Key);
 end;
 
+procedure SetMeasurement(Key: String; Ms: Integer);
+begin
+  ForceDirectories(ExtractFileDir(ConfigFile));
+  SetIniString('Benchmark', Key, IntToStr(Ms), ConfigFile);
+end;
+
 function ModelPath(I: Integer): String;
 begin
   if I = 0 then Result := AddBackslash(WizardDirValue) + 'CryptMaster_Data\StreamingAssets\Whisper\ggml-tiny.bin'
@@ -820,6 +826,9 @@ begin
     Gpu := Cpu;
     Summary := 'Processor: ' + ModelLabel(Cpu) + ', ' + IntToStr(CpuMs) + ' ms per word.' + #13#10;
   end;
+  // Measurements, shown in the game's Options menu (they describe this PC, not choices, so always written).
+  if GpuMs > 0 then SetMeasurement('VulkanGpuMs', GpuMs);
+  if CpuMs > 0 then SetMeasurement('CpuMs', CpuMs);
   if Largest > 0 then
   begin
     SetConfig('Model', 'English', EnglishFile(Gpu));
@@ -837,15 +846,14 @@ begin
       Summary := Summary + 'CUDA: didn''t work on this PC, so Vulkan stays.' + #13#10
     else
       Summary := Summary + 'CUDA: ' + IntToStr(CudaMs) + ' ms per word, against ' + IntToStr(GpuMs) + ' ms with Vulkan.' + #13#10;
+    if CudaMs > 0 then SetMeasurement('CudaGpuMs', CudaMs);
+    // The backend itself isn't written: Auto (the default) uses CUDA only when these measurements say it's
+    // more than 10% faster, and anyone who chose a backend keeps it.
     if (CudaMs >= 0) and (GpuMs > 0) and (CudaMs * 10 < GpuMs * 9) then
-    begin
-      SetConfig('Performance', 'Backend', 'CUDA');
-      Summary := Summary + 'CUDA is faster here, so it''s used. Congratulations on your extra milliseconds.' + #13#10;
-    end
+      Summary := Summary + 'CUDA is faster here, so Auto uses it. Congratulations on your extra milliseconds.' + #13#10
     else
     begin
-      SetConfig('Performance', 'Backend', 'Auto');
-      Summary := Summary + 'CUDA isn''t meaningfully faster, so Vulkan is used.' + #13#10;
+      Summary := Summary + 'CUDA isn''t meaningfully faster, so Auto uses Vulkan.' + #13#10;
       if CudaDownloaded and (SuppressibleMsgBox('CUDA wasn''t meaningfully faster than Vulkan on your card (' + IntToStr(CudaMs) + ' ms against ' + IntToStr(GpuMs) +
         ' ms per word). Delete the CUDA files it just downloaded (about 1.3 GB)?', mbConfirmation, MB_YESNO, IDNO) = IDYES) then
       begin

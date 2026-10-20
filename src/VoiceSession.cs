@@ -386,6 +386,7 @@ namespace CryptmasterWhisper
                 }
                 if (result.IsFinal)
                 {
+                    WhisperEngine.RecordLatency(result.InferenceMs);
                     _save.CloseDictationEngine(_doesDispose: false);
                 }
                 else if (_finalPending)

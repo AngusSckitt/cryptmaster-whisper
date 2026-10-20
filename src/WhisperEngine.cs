@@ -109,6 +109,12 @@ namespace CryptmasterWhisper
             }
             _backendChosen = true;
             string choice = Plugin.Backend.Value;
+            // Auto: CUDA only if it's installed and measured more than 10% faster than Vulkan on this PC.
+            if (choice == Plugin.BackendAuto && NativeBackend.IsInstalled("cuda")
+                && Plugin.CudaGpuMs.Value > 0 && Plugin.VulkanGpuMs.Value > 0 && Plugin.CudaGpuMs.Value * 10 < Plugin.VulkanGpuMs.Value * 9)
+            {
+                choice = Plugin.BackendCuda;
+            }
             _native = choice switch
             {
                 Plugin.BackendCuda => NativeBackend.TryLoad("cuda", true) ?? NativeBackend.TryLoad("vulkan", true),
@@ -123,6 +129,19 @@ namespace CryptmasterWhisper
         }
 
         internal static string BackendName => _native == null ? "game" : _native.Variant + (_native.UseGpu ? "" : "-cpu");
+
+        /// <summary>Folds a real final-result time into the measured time of the backend in use (shown in the menu).</summary>
+        internal static void RecordLatency(long inferenceMs)
+        {
+            BepInEx.Configuration.ConfigEntry<int> entry = _native == null ? null
+                : !OnGpu ? Plugin.CpuMs
+                : _native.Variant == "cuda" ? Plugin.CudaGpuMs : Plugin.VulkanGpuMs;
+            if (entry == null || inferenceMs <= 0)
+            {
+                return;
+            }
+            entry.Value = entry.Value <= 0 ? (int)inferenceMs : (int)((entry.Value * 3 + inferenceMs) / 4);
+        }
 
         /// <summary>Loads a model (once); call from a worker thread. Returns false if it can't be loaded.</summary>
         internal static bool Get(string modelName)

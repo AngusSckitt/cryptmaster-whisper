@@ -31,6 +31,7 @@ namespace CryptmasterWhisper
         internal static ConfigEntry<string> ModelPerLanguage;
         internal static ConfigEntry<int> Threads;
         internal static ConfigEntry<string> Backend;
+        internal static ConfigEntry<int> VulkanGpuMs, CudaGpuMs, CpuMs;
         internal static ConfigEntry<float> InitialSilenceSeconds;
         internal static ConfigEntry<float> EndSilenceSeconds;
         internal static ConfigEntry<float> MaxUtteranceSeconds;
@@ -76,6 +77,9 @@ namespace CryptmasterWhisper
             Backend = Config.Bind("Performance", "Backend", BackendAuto,
                 new ConfigDescription("Auto: the GPU-capable whisper.cpp in native\\vulkan if installed (AMD, Intel or NVIDIA GPU; CPU otherwise), else the game's own library. CUDA: native\\cuda (NVIDIA, optional install). CPU: native\\vulkan without the GPU. Game: always the game's own library (CPU).",
                     new AcceptableValueList<string>(BackendAuto, BackendVulkan, BackendCuda, BackendCpu, BackendGame)));
+            VulkanGpuMs = Config.Bind("Benchmark", "VulkanGpuMs", -1, "Measured time per word on the GPU with Vulkan (written by the installer, refreshed from real use; -1 = unknown). Shown in the Options menu; Auto uses CUDA only if it's more than 10% faster than this.");
+            CudaGpuMs = Config.Bind("Benchmark", "CudaGpuMs", -1, "Measured time per word on the GPU with CUDA (-1 = unknown).");
+            CpuMs = Config.Bind("Benchmark", "CpuMs", -1, "Measured time per word on the CPU (-1 = unknown).");
             Threads = Config.Bind("Performance", "Threads", 0, "CPU threads for recognition (0 = automatic: one less than the number of cores, at most 4).");
             InitialSilenceSeconds = Config.Bind("Listening", "InitialSilenceSeconds", 4f, "How long to wait for speech after pressing the Ear button.");
             EndSilenceSeconds = Config.Bind("Listening", "EndSilenceSeconds", 0.6f, "Silence that ends an utterance.");

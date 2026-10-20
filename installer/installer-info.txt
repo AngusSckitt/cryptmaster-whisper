@@ -1,21 +1,29 @@
-Cryptmaster Whisper
+Vanilla Cryptmaster uses Windows Speech Recognition, which stays the default: Whisper is opt-in. Switch it on in the game's Options > Voice, and switch back to Windows Speech Recognition at any time if Whisper misbehaves.
 
-Adds Whisper as an optional voice recogniser for Cryptmaster's voice input. Windows Speech Recognition,
-the game's own (default; vanilla), stays the default: switch to Whisper in BepInEx\config\
-cryptmaster.whisper.cfg (Engine = Whisper), and back to Windows if Whisper misbehaves.
+WHAT WHISPER IS
+Whisper is a speech recognition model released as open source by OpenAI. Here it runs entirely on your computer: no online speech service, no account, and nothing is sent anywhere. The mod runs it through whisper.cpp, an open-source engine that uses your graphics card (any brand, through Vulkan) or your processor.
 
-Whisper mode is an attempt to use a feature the original game shipped but never used. It makes no
-promise of better recognition than Windows Speech Recognition.
+HOW IT WORKS IN THE GAME
+When you press the Ear button (Ctrl), the mod records your microphone until you stop speaking (or, in push-to-talk mode, while you hold the button), gives that short clip to Whisper, and hands the words it hears to the game at exactly the point where Windows Speech Recognition would. Everything after that is the game's own: the same words, the same typing, the same commands.
 
-What this installs:
-- the mod, into BepInEx\plugins\CryptmasterWhisper;
-- BepInEx 5 (the mod loader), if it isn't installed yet;
-- whisper.cpp built with Vulkan (works on AMD, Intel and NVIDIA GPUs, and on the CPU without one);
-- optionally, a larger Whisper model, downloaded from its official source;
-- optionally, on PCs with an NVIDIA GPU, a CUDA backend, downloaded from its official source;
-- the Microsoft Visual C++ runtime, downloaded from Microsoft, only if it's missing.
+HOW IT MIGHT HELP
+Whether it does depends on your voice, microphone, language and PC, so these are possibilities, not promises. It doesn't need Windows' online speech recognition to be switched on. It follows the game's language, including languages Windows may not recognise on your PC. Push to talk keeps background noise from setting it off. And it's told which skill words your party currently knows.
 
-Downloads are checked against fixed SHA-256 hashes. Nothing is sent anywhere: recognition runs entirely
-on your computer.
+WHY IT WAS PROBABLY LEFT OUT
+The game already ships Whisper (a 2023 build and three small models), but switches it off at start-up and never uses it. The developers never said why, so this is our best guess: with the settings it came with, each recognition took close to a second, and the small models struggled with the game's invented words, while Windows Speech Recognition answered almost instantly.
 
-Uninstalling removes the mod's folder. BepInEx and the mod's settings stay, since other mods may use them.
+WHAT THIS MOD DOES DIFFERENTLY
+- Sizes Whisper's audio window to the word you said, instead of a fixed 30 seconds: roughly ten times faster than the settings the game shipped with.
+- Uses a current whisper.cpp that can run on the graphics card, which makes larger, more accurate Whisper models practical.
+- Tests your PC during this installation, to recommend a model for your graphics card and one for your processor.
+- Detects when you start and stop speaking, shows provisional results while you speak, and filters out phrases Whisper tends to "hear" in silence.
+
+WHAT THIS INSTALLS
+- The mod, into BepInEx\plugins\CryptmasterWhisper.
+- BepInEx 5 (the mod loader), if it isn't installed yet.
+- whisper.cpp built with Vulkan (works on AMD, Intel and NVIDIA graphics cards, and on the processor without one).
+- Optionally, larger Whisper models, downloaded from their official source.
+- Optionally, on PCs with an NVIDIA graphics card, a CUDA backend, downloaded from its official source.
+- The Microsoft Visual C++ runtime, downloaded from Microsoft, only if it's missing.
+
+Downloads are checked against fixed SHA-256 hashes. Anything already in the mod's folder is left alone unless you choose otherwise. Uninstalling removes only what this installer added; BepInEx and your settings stay, since other mods may use them.
