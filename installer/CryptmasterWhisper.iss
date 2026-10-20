@@ -1,4 +1,4 @@
-; Installer for Cryptmaster Whisper. Built by tools\package.ps1 (which stages the files in dist\stage).
+﻿; Installer for Cryptmaster Whisper. Built by tools\package.ps1 (which stages the files in dist\stage).
 ; Ships only what may be redistributed (docs\LICENSING.md): the mod, the Vulkan whisper.cpp build, BepInEx.
 ; Larger Whisper models and the optional CUDA build are downloaded from their official sources on the
 ; player's computer, checked against pinned SHA-256 hashes, and never packed in here.
@@ -47,22 +47,25 @@ OutputBaseFilename=CryptmasterWhisper-Setup-{#AppVersion}
 Compression=lzma2
 SolidCompression=yes
 LicenseFile=..\LICENSE
-InfoBeforeFile=installer-info.txt
 UninstallDisplayName=Cryptmaster Whisper
 
-[Messages]
-SelectDirLabel3=Setup will install Cryptmaster Whisper into your Cryptmaster game folder (the folder with CryptMaster.exe).
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"; InfoBeforeFile: "installer-info.txt"
+Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"; InfoBeforeFile: "installer-info-spa.txt"
+Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"; InfoBeforeFile: "installer-info-por.txt"
+
+#include "messages.iss"
 
 [Types]
 Name: "custom"; Description: "Custom"; Flags: iscustom
 
 [Components]
-Name: "main"; Description: "Cryptmaster Whisper, with the Vulkan whisper.cpp (GPU: AMD, Intel or NVIDIA; CPU otherwise)"; Types: custom; Flags: fixed
-Name: "models"; Description: "Extra Whisper models (downloaded; the game's own tiny models are always available). Recommended ones are ticked from the test of your PC."
-Name: "models\base"; Description: "base: 57 MB"; ExtraDiskSpaceRequired: 59707625
-Name: "models\small"; Description: "small: 181 MB"; ExtraDiskSpaceRequired: 190085487
-Name: "models\turbo"; Description: "large-v3-turbo: 547 MB, the most accurate"; ExtraDiskSpaceRequired: 574041195
-Name: "cuda"; Description: "NVIDIA CUDA backend: about 650 MB download, 1.3 GB unpacked on disk, then tested against Vulkan"; ExtraDiskSpaceRequired: 1400000000; Check: CudaOffered
+Name: "main"; Description: "{cm:CompMain}"; Types: custom; Flags: fixed
+Name: "models"; Description: "{cm:CompModels}"
+Name: "models\base"; Description: "{cm:CompBase}"; ExtraDiskSpaceRequired: 59707625
+Name: "models\small"; Description: "{cm:CompSmall}"; ExtraDiskSpaceRequired: 190085487
+Name: "models\turbo"; Description: "{cm:CompTurbo}"; ExtraDiskSpaceRequired: 574041195
+Name: "cuda"; Description: "{cm:CompCuda}"; ExtraDiskSpaceRequired: 1400000000; Check: CudaOffered
 
 [Files]
 ; Only the mod's own files: other files already in the folder are left alone.
@@ -108,6 +111,24 @@ var
   Summary: String;
   AddedFiles: TStringList;
 
+// ---- Texts (installer\messages.iss) ----
+
+function Msg(Key: String): String;
+begin
+  Result := CustomMessage(Key);
+  StringChangeEx(Result, '%n', #13#10, True);
+end;
+
+// %1, %2... (FmtMessage can't take an open array passed through from here).
+function Fmt(Key: String; Args: array of String): String;
+var
+  I: Integer;
+begin
+  Result := Msg(Key);
+  for I := GetArrayLength(Args) - 1 downto 0 do
+    StringChangeEx(Result, '%' + IntToStr(I + 1), Args[I], True);
+end;
+
 // ---- Models: 0 tiny (the game's), 1 base, 2 small, 3 turbo ----
 
 function ModelFile(I: Integer): String;
@@ -133,7 +154,7 @@ end;
 function ModelLabel(I: Integer): String;
 begin
   case I of
-    0: Result := 'tiny (the game''s)';
+    0: Result := Msg('ModelTiny');
     1: Result := 'base';
     2: Result := 'small';
   else Result := 'large-v3-turbo';
@@ -339,9 +360,6 @@ begin
     if CompareText(Name, ModelFile(I)) = 0 then Result := I;
 end;
 
-const
-  Maybe = 'Already here before this installation: maybe a previous install, maybe something else entirely. ';
-
 procedure DetectFound;
 var
   Find: TFindRec;
@@ -364,33 +382,32 @@ begin
         if Known > 0 then
         begin
           if GetSHA256OfFile(PluginDir + '\models\' + Find.Name) = ModelSha(Known) then
-            Note := 'Same as the official download, so it won''t be downloaded again.'
+            Note := Msg('FoundSame')
           else
-            Note := 'Differs from the official download; kept as it is unless deleted here.';
+            Note := Msg('FoundDiffers');
         end
         else
-          Note := 'Not one of this installer''s downloads: maybe there on purpose.';
+          Note := Msg('FoundForeign');
         AddFound(PluginDir + '\models\' + Find.Name, False, False,
-          'Delete model ' + Find.Name + ' (' + IntToStr(FileMb(PluginDir + '\models\' + Find.Name)) + ' MB)', Maybe + Note);
+          Fmt('FoundDelModel', [Find.Name, IntToStr(FileMb(PluginDir + '\models\' + Find.Name))]), Msg('FoundMaybe') + ' ' + Note);
       until not FindNext(Find);
     finally
       FindClose(Find);
     end;
   // A CUDA backend.
   if DirExists(CudaDir) then
-    AddFound(CudaDir, True, False, 'Delete the CUDA backend folder (native\cuda, ' + IntToStr(CountFiles(CudaDir, '*.dll')) + ' DLLs, about 1.3 GB)',
-      Maybe + 'If kept, it''s tested against Vulkan and used only if faster.');
+    AddFound(CudaDir, True, False, Fmt('FoundDelCuda', [IntToStr(CountFiles(CudaDir, '*.dll'))]),
+      Msg('FoundMaybe') + ' ' + Msg('FoundCudaNote'));
   // Test recordings.
   if DirExists(PluginDir + '\recordings') then
   begin
     Sessions := IntToStr(CountFiles(PluginDir + '\recordings', '*')) ;
-    AddFound(PluginDir + '\recordings', True, False, 'Delete the test recordings folder (recordings\)',
-      Maybe + 'Real people''s voices from test sessions: be sure before deleting.');
+    AddFound(PluginDir + '\recordings', True, False, Msg('FoundDelRec'),
+      Msg('FoundMaybe') + ' ' + Msg('FoundRecNote'));
   end;
   // Existing settings.
   if FileExists(ConfigFile) then
-    AddFound(ConfigFile, False, True, 'Replace my current Whisper settings with this installer''s recommendations',
-      'A settings file was already here. Unticked, every setting in it is kept as it is; only missing ones are added.');
+    AddFound(ConfigFile, False, True, Msg('FoundSettings'), Msg('FoundSettingsNote'));
   FoundDetected := True;
 end;
 
@@ -553,7 +570,7 @@ begin
   ExtractTemporaryFiles('{tmp}\bench\*');
   if Interactive then
   begin
-    Progress := CreateOutputProgressPage('Testing your PC', 'Timing Whisper on your graphics card and on your processor. This takes a few seconds.');
+    Progress := CreateOutputProgressPage(Msg('BenchProgressTitle'), Msg('BenchProgressText'));
     Progress.Show;
     try
       Progress.SetProgress(1, 3);
@@ -573,28 +590,26 @@ begin
   if GpuName <> '' then GpuPick := Pick(0);
   CpuPick := Pick(1);
 
-  if GpuName <> '' then Report := 'Graphics card: ' + GpuName + ' (' + IntToStr(GpuFreeMb) + ' MB free)' + #13#10
-  else Report := 'No graphics card usable by Whisper was found: recognition will run on the processor.' + #13#10;
-  Report := Report + #13#10 + 'Estimated time to recognise one word:' + #13#10 + #13#10 +
-    PadRight('', 20) + PadRight('graphics card', 16) + 'processor' + #13#10;
+  if GpuName <> '' then Report := Fmt('RepGpu', [GpuName, IntToStr(GpuFreeMb)]) + #13#10
+  else Report := Msg('RepNoGpu') + #13#10;
+  Report := Report + #13#10 + Msg('RepEstimated') + #13#10 + #13#10 +
+    PadRight('', 20) + PadRight(Msg('RepColGpu'), 16) + Msg('RepColCpu') + #13#10;
   for I := 0 to ModelCount - 1 do
     Report := Report + PadRight(ModelLabel(I), 20) + PadRight(FormatMs(Estimate[0][I]), 16) + FormatMs(Estimate[1][I]) + #13#10;
   Report := Report + #13#10;
   if GpuName <> '' then
   begin
-    Report := Report + 'Recommended for the graphics card: ' + ModelLabel(GpuPick) + '.' + #13#10;
+    Report := Report + Fmt('RepRecGpu', [ModelLabel(GpuPick)]) + #13#10;
     if CpuPick <> GpuPick then
-      Report := Report + 'Recommended for the processor: ' + ModelLabel(CpuPick) + ', used whenever the graphics card isn''t available.' + #13#10
+      Report := Report + Fmt('RepRecCpu', [ModelLabel(CpuPick)]) + #13#10
     else
-      Report := Report + 'The same model also suits the processor, used whenever the graphics card isn''t available.' + #13#10;
+      Report := Report + Msg('RepSameCpu') + #13#10;
   end
   else
-    Report := Report + 'Recommended: ' + ModelLabel(CpuPick) + '.' + #13#10;
+    Report := Report + Fmt('RepRecOnly', [ModelLabel(CpuPick)]) + #13#10;
   if CudaPresent then
-    Report := Report + 'A CUDA backend is already installed: it will be tested against Vulkan after installing.' + #13#10;
-  Report := Report + #13#10 + 'These are estimates from a quick test with the game''s own tiny model (a model is recommended when it ' +
-    'stays under ' + IntToStr(BudgetMs) + ' ms). The recommended models are ticked on the next page; you can change them. ' +
-    'After downloading, the chosen models are timed for real and swapped for a smaller one if they are too slow.';
+    Report := Report + Msg('RepCudaPresent') + #13#10;
+  Report := Report + #13#10 + Fmt('RepFootnote', [IntToStr(BudgetMs)]);
   BenchPage.RichEditViewer.Text := Report;
   Log(Report);
   if not Interactive then Exit;
@@ -612,26 +627,12 @@ procedure CreateCudaNote; forward;
 procedure InitializeWizard;
 begin
   AddedFiles := TStringList.Create;
-  BenchPage := CreateOutputMsgMemoPage(wpSelectDir, 'Testing your PC', 'Which Whisper models suit this computer.', 'Results:', '');
+  BenchPage := CreateOutputMsgMemoPage(wpSelectDir, Msg('BenchProgressTitle'), Msg('BenchPageDesc'), Msg('BenchPageCaption'), '');
   BenchPage.RichEditViewer.Font.Name := 'Consolas';
-  FoundPage := CreateCustomPage(wpSelectComponents, 'Already on this PC',
-    'These were already in the mod''s folder before this installation. Nothing here is touched unless you tick it.');
-  FoundPage2 := CreateCustomPage(FoundPage.ID, 'Already on this PC (continued)', 'More things that were already here. Same deal: nothing is touched unless ticked.');
-  CudaPage := CreateOutputMsgMemoPage(FoundPage2.ID,
-    'About the CUDA backend', 'You almost certainly don''t need this. Read before continuing.',
-    'The CUDA backend is selected. Here is what that means:',
-    'WHAT IT IS' + #13#10 +
-    'An alternative GPU backend for NVIDIA cards, using NVIDIA CUDA. The standard Vulkan backend is installed anyway and already uses your NVIDIA GPU.' + #13#10#13#10 +
-    'HOW IT PERFORMED' + #13#10 +
-    'In our rigorous, peer-reviewed test campaign of exactly one graphics card (an RTX 4070 SUPER, sample size n = 1), CUDA and Vulkan performed very similarly: both recognised a word in well under 0.1 seconds, with CUDA usually ahead by a few milliseconds (32 against 41 ms with the largest model). An earlier measurement that crowned Vulkan the clear winner turned out to be measuring CUDA''s start-up instead. Neither difference is noticeable while playing; a blink takes about 100 times longer.' + #13#10#13#10 +
-    'HOW BIG IT IS' + #13#10 +
-    'Pretty massive. About 650 MB to download and about 1.3 GB on disk, mostly NVIDIA''s own libraries, to maybe save a few milliseconds you will never notice.' + #13#10#13#10 +
-    'WHAT HAPPENS NEXT' + #13#10 +
-    'After downloading, it''s timed against Vulkan on your card. It''s only used if it''s actually faster, and if it isn''t, you''ll be offered to delete it straight away.' + #13#10#13#10 +
-    'WHERE IT COMES FROM' + #13#10 +
-    'The official whisper.cpp release on GitHub (ggml-org/whisper.cpp, build b5454), checked against a fixed SHA-256 hash. It contains NVIDIA CUDA runtime files under NVIDIA''s own licence (the CUDA Toolkit EULA). This installer doesn''t contain any NVIDIA files; it downloads them onto your computer only if you keep this option.' + #13#10#13#10 +
-    'If unsure, go back and untick it. You can switch backends later in BepInEx\config\cryptmaster.whisper.cfg (Performance.Backend).');
-  DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), 'Downloading the selected files...', nil);
+  FoundPage := CreateCustomPage(wpSelectComponents, Msg('FoundTitle'), Msg('FoundDesc'));
+  FoundPage2 := CreateCustomPage(FoundPage.ID, Msg('Found2Title'), Msg('Found2Desc'));
+  CudaPage := CreateOutputMsgMemoPage(FoundPage2.ID, Msg('CudaTitle'), Msg('CudaDesc'), Msg('CudaCaption'), Msg('CudaBody'));
+  DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), Msg('DownloadDesc'), nil);
   CreateCudaNote;
 end;
 
@@ -647,7 +648,7 @@ begin
   List := WizardForm.ComponentsList;
   CudaNote := TNewStaticText.Create(WizardForm);
   CudaNote.Parent := List.Parent;
-  CudaNote.Caption := 'CUDA selected: additional information on the next page.';
+  CudaNote.Caption := Msg('CudaNoteLabel');
   CudaNote.Font.Style := [fsBold];
   CudaNote.Left := List.Left;
   CudaNote.Width := List.Width;
@@ -658,12 +659,96 @@ begin
   List.OnClickCheck := @UpdateCudaNote;
 end;
 
+// ---- The Portuguese localisation (a separate mod): offered on the Portuguese installer's finish page ----
+
+const
+  PtRepo = 'AngusSckitt/cryptmaster-localizacao-ptbr';
+
+var
+  PtModBox: TNewCheckBox;
+
+function PtModInstalled: Boolean;
+begin
+  Result := FileExists(AddBackslash(GameDir) + 'BepInEx\plugins\CryptmasterLocalizacaoPTBR\CryptmasterLocalizacaoPTBR.dll');
+end;
+
+procedure ShowPtModOffer;
+begin
+  // Interactive installs only: a silent install never downloads or launches anything unasked.
+  if WizardSilent or (ActiveLanguage <> 'brazilianportuguese') or PtModInstalled or (PtModBox <> nil) then Exit;
+  PtModBox := TNewCheckBox.Create(WizardForm);
+  PtModBox.Parent := WizardForm.FinishedPage;
+  PtModBox.Left := WizardForm.FinishedLabel.Left;
+  PtModBox.Width := WizardForm.FinishedLabel.Width;
+  PtModBox.Height := ScaleY(34);
+  PtModBox.Top := WizardForm.FinishedPage.ClientHeight - ScaleY(44);
+  PtModBox.Caption := Msg('PtModOffer');
+  PtModBox.Checked := True;
+end;
+
+// The latest release's installer (an .exe asset) from the PT mod's GitHub repository; '' if none.
+function LatestPtInstallerUrl: String;
+var
+  Json: AnsiString;
+  S: String;
+  P, E: Integer;
+begin
+  Result := '';
+  try
+    DownloadTemporaryFile('https://api.github.com/repos/' + PtRepo + '/releases/latest', 'pt-latest.json', '', nil);
+    if not LoadStringFromFile(ExpandConstant('{tmp}\pt-latest.json'), Json) then Exit;
+    S := String(Json);
+    // Each asset has "browser_download_url":"https://github.com/<repo>/releases/download/<tag>/<file>".
+    repeat
+      P := Pos('"browser_download_url":"', S);
+      if P = 0 then Exit;
+      S := Copy(S, P + 24, Length(S));
+      E := Pos('"', S);
+      if (E > 0) and (Pos('https://github.com/' + PtRepo + '/releases/download/', Copy(S, 1, E - 1)) = 1)
+        and (CompareText(Copy(S, E - 4, 4), '.exe') = 0) then
+      begin
+        Result := Copy(S, 1, E - 1);
+        Exit;
+      end;
+    until False;
+  except
+    Log('PT mod release lookup failed: ' + GetExceptionMessage);
+  end;
+end;
+
+procedure RunPtModOffer;
+var
+  Url: String;
+  Code: Integer;
+begin
+  if (PtModBox = nil) or not PtModBox.Checked then Exit;
+  Url := LatestPtInstallerUrl;
+  if Url <> '' then
+    try
+      DownloadTemporaryFile(Url, 'pt-installer.exe', '', nil);
+      // Copied out of {tmp}, which this installer deletes when it closes.
+      FileCopy(ExpandConstant('{tmp}\pt-installer.exe'), ExpandConstant('{%TEMP}\CryptmasterLocalizacaoPTBR-Setup.exe'), False);
+      if ShellExec('', ExpandConstant('{%TEMP}\CryptmasterLocalizacaoPTBR-Setup.exe'), '', '', SW_SHOWNORMAL, ewNoWait, Code) then Exit;
+    except
+      Log('PT mod installer download failed: ' + GetExceptionMessage);
+    end;
+  // No installer release yet (or no connection): the releases page instead.
+  SuppressibleMsgBox(Msg('PtModFallback'), mbInformation, MB_OK, IDOK);
+  ShellExec('open', 'https://github.com/' + PtRepo + '/releases/latest', '', '', SW_SHOWNORMAL, ewNoWait, Code);
+end;
+
 procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = wpSelectComponents then UpdateCudaNote(nil)
-  else if CurPageID = BenchPage.ID then RunBenchmark(True)
+  // Inno calls this in silent installs too: there, nothing is ticked on the player's behalf.
+  else if CurPageID = BenchPage.ID then RunBenchmark(not WizardSilent)
   else if CurPageID = wpFinished then
-    WizardForm.FinishedLabel.Caption := 'Cryptmaster Whisper is installed. Windows Speech Recognition (default; vanilla) stays the default; set Engine = Whisper in BepInEx\config\cryptmaster.whisper.cfg to try Whisper.' + #13#10#13#10 + Summary;
+  begin
+    WizardForm.FinishedLabel.Caption := Msg('Finished') + #13#10#13#10 + Summary;
+    if Msg('FinishLangNote') <> '' then
+      WizardForm.FinishedLabel.Caption := WizardForm.FinishedLabel.Caption + #13#10 + Msg('FinishLangNote');
+    ShowPtModOffer;
+  end;
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -692,7 +777,7 @@ begin
   begin
     if not IsGameDir(WizardDirValue) then
     begin
-      MsgBox('CryptMaster.exe was not found in this folder. Please choose your Cryptmaster game folder.', mbError, MB_OK);
+      MsgBox(Msg('NotGameDir'), mbError, MB_OK);
       Result := False;
       Exit;
     end;
@@ -846,14 +931,14 @@ begin
   begin
     Gpu := SettleModel(Gpu, 0, GpuMs);
     Cpu := SettleModel(Cpu, 1, CpuMs);
-    Summary := 'Graphics card (' + GpuName + '): ' + ModelLabel(Gpu) + ', ' + IntToStr(GpuMs) + ' ms per word with Vulkan.' + #13#10 +
-      'Processor (fallback): ' + ModelLabel(Cpu) + ', ' + IntToStr(CpuMs) + ' ms per word.' + #13#10;
+    Summary := Fmt('SumGpu', [GpuName, ModelLabel(Gpu), IntToStr(GpuMs)]) + #13#10 +
+      Fmt('SumCpuFallback', [ModelLabel(Cpu), IntToStr(CpuMs)]) + #13#10;
   end
   else
   begin
     Cpu := SettleModel(Gpu, 1, CpuMs);
     Gpu := Cpu;
-    Summary := 'Processor: ' + ModelLabel(Cpu) + ', ' + IntToStr(CpuMs) + ' ms per word.' + #13#10;
+    Summary := Fmt('SumCpuOnly', [ModelLabel(Cpu), IntToStr(CpuMs)]) + #13#10;
   end;
   // Measurements, shown in the game's Options menu (they describe this PC, not choices, so always written).
   if GpuMs > 0 then SetMeasurement('VulkanGpuMs', GpuMs);
@@ -872,23 +957,22 @@ begin
     CudaDownloaded := AddedFiles.IndexOf('native\cuda') >= 0;
     CudaMs := TimeCuda(Gpu);
     if CudaMs < 0 then
-      Summary := Summary + 'CUDA: didn''t work on this PC, so Vulkan stays.' + #13#10
+      Summary := Summary + Msg('SumCudaFail') + #13#10
     else
-      Summary := Summary + 'CUDA: ' + IntToStr(CudaMs) + ' ms per word, against ' + IntToStr(GpuMs) + ' ms with Vulkan.' + #13#10;
+      Summary := Summary + Fmt('SumCudaTimes', [IntToStr(CudaMs), IntToStr(GpuMs)]) + #13#10;
     if CudaMs > 0 then SetMeasurement('CudaGpuMs', CudaMs);
     // The backend itself isn't written: Auto (the default) uses CUDA only when these measurements say it's
     // more than 10% faster, and anyone who chose a backend keeps it.
     if (CudaMs >= 0) and (GpuMs > 0) and (CudaMs * 10 < GpuMs * 9) then
-      Summary := Summary + 'CUDA is faster here, so Auto uses it. Congratulations on your extra milliseconds.' + #13#10
+      Summary := Summary + Msg('SumCudaFaster') + #13#10
     else
     begin
-      Summary := Summary + 'CUDA isn''t meaningfully faster, so Auto uses Vulkan.' + #13#10;
-      if CudaDownloaded and (SuppressibleMsgBox('CUDA wasn''t meaningfully faster than Vulkan on your card (' + IntToStr(CudaMs) + ' ms against ' + IntToStr(GpuMs) +
-        ' ms per word). Delete the CUDA files it just downloaded (about 1.3 GB)?', mbConfirmation, MB_YESNO, IDNO) = IDYES) then
+      Summary := Summary + Msg('SumCudaNotFaster') + #13#10;
+      if CudaDownloaded and (SuppressibleMsgBox(Fmt('AskDeleteCuda', [IntToStr(CudaMs), IntToStr(GpuMs)]), mbConfirmation, MB_YESNO, IDNO) = IDYES) then
       begin
         DelTree(CudaDir, True, True, True);
         AddedFiles.Delete(AddedFiles.IndexOf('native\cuda'));
-        Summary := Summary + 'The CUDA files were deleted.' + #13#10;
+        Summary := Summary + Msg('SumCudaDeleted') + #13#10;
       end;
     end;
   end;
@@ -939,6 +1023,11 @@ var
   Code, I: Integer;
   Models, Src, Dest: String;
 begin
+  if CurStep = ssDone then
+  begin
+    RunPtModOffer;
+    Exit;
+  end;
   if CurStep = ssInstall then
   begin
     if not FoundDetected then DetectFound; // silent installs: detected, never deleted

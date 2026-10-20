@@ -1,4 +1,4 @@
-Vanilla Cryptmaster uses Windows Speech Recognition, which stays the default: Whisper is opt-in. Switch it on in the game's Options > Voice, and switch back to Windows Speech Recognition at any time if Whisper misbehaves.
+﻿Vanilla Cryptmaster uses Windows Speech Recognition, which stays the default: Whisper is opt-in. Switch it on in the game's Options > Voice, and switch back to Windows Speech Recognition at any time if Whisper misbehaves.
 
 WHAT WHISPER IS
 Whisper is a speech recognition model released as open source by OpenAI. Here it runs entirely on your computer: no online speech service, no account, and nothing is sent anywhere. The mod runs it through whisper.cpp, an open-source engine that uses your graphics card (any brand, through Vulkan) or your processor.
