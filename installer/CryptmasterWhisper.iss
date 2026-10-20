@@ -757,7 +757,8 @@ begin
   try
     Locator := CreateOleObject('WbemScripting.SWbemLocator');
     Service := Locator.ConnectServer('.', 'root\CIMV2');
-    Items := Service.ExecQuery('SELECT ProcessId FROM Win32_Process WHERE Name LIKE ''\_iu%.tmp''');
+    // Named _unins.tmp by current Inno versions, _iu*.tmp by older ones.
+    Items := Service.ExecQuery('SELECT ProcessId FROM Win32_Process WHERE Name LIKE ''\_unins%.tmp'' OR Name LIKE ''\_iu%.tmp''');
     Result := Items.Count > 0;
   except
     Result := False;
@@ -851,8 +852,12 @@ begin
   // First page: an existing installation (skipped when there's none).
   DetectExisting;
   ExistingPage := CreateInputOptionPage(wpWelcome, Msg('ExistTitle'), '', '', True, False);
-  if ExistingKind = 1 then ExistingPage.SubCaptionLabel.Caption := Fmt('ExistRegistered', [ExistingVersion, ExistingDir])
-  else ExistingPage.SubCaptionLabel.Caption := Fmt('ExistManual', [ExistingDir]);
+  // The folder on its own line, shortened with "..." if it doesn't fit; the options move down to make room.
+  if ExistingKind = 1 then ExistingPage.SubCaptionLabel.Caption := Fmt('ExistRegistered', [ExistingVersion,
+    MinimizePathName(ExistingDir, ExistingPage.SubCaptionLabel.Font, ExistingPage.SurfaceWidth - ScaleX(8))])
+  else ExistingPage.SubCaptionLabel.Caption := Fmt('ExistManual', [MinimizePathName(ExistingDir, ExistingPage.SubCaptionLabel.Font, ExistingPage.SurfaceWidth - ScaleX(8))]);
+  ExistingPage.SubCaptionLabel.AdjustHeight;
+  ExistingPage.CheckListBox.Top := ExistingPage.SubCaptionLabel.Top + ExistingPage.SubCaptionLabel.Height + ScaleY(10);
   ExistingPage.Add(Msg('ExistReplace'));
   ExistingPage.Add(Msg('ExistRemove'));
   ExistingPage.SelectedValueIndex := 0;

@@ -6,6 +6,10 @@
 english.SelectDirLabel3=Setup will install Cryptmaster Whisper into your Cryptmaster game folder (the folder with CryptMaster.exe).
 spanish.SelectDirLabel3=El instalador pondrá Cryptmaster Whisper en la carpeta del juego Cryptmaster (la que contiene CryptMaster.exe).
 brazilianportuguese.SelectDirLabel3=O instalador vai colocar o Cryptmaster Whisper na pasta do jogo Cryptmaster (a que contém o CryptMaster.exe).
+; The uninstaller's confirmation: Inno's default says "completely remove ... and all of its components", which isn't true here.
+english.ConfirmUninstall=Remove %1? Its logs, your settings and anything that was there before installing it are kept.
+spanish.ConfirmUninstall=¿Quitar %1? Se conservan sus registros, tus ajustes y todo lo que ya estaba antes de instalarlo.
+brazilianportuguese.ConfirmUninstall=Remover o %1? Os registros, as suas configurações e tudo o que já estava lá antes da instalação são mantidos.
 
 [CustomMessages]
 ; ---- Components ----
@@ -35,12 +39,12 @@ brazilianportuguese.CudaNoteLabel=CUDA selecionado: mais informações na próxi
 english.ExistTitle=Cryptmaster Whisper is already installed
 spanish.ExistTitle=Cryptmaster Whisper ya está instalado
 brazilianportuguese.ExistTitle=O Cryptmaster Whisper já está instalado
-english.ExistRegistered=Version %1 is installed in %2. What would you like to do?
-spanish.ExistRegistered=La versión %1 está instalada en %2. ¿Qué quieres hacer?
-brazilianportuguese.ExistRegistered=A versão %1 está instalada em %2. O que você quer fazer?
-english.ExistManual=A copy installed by hand (from the zip, or a build) is in %1. What would you like to do?
-spanish.ExistManual=Hay una copia instalada a mano (desde el zip o una compilación) en %1. ¿Qué quieres hacer?
-brazilianportuguese.ExistManual=Há uma cópia instalada à mão (pelo zip ou por uma compilação) em %1. O que você quer fazer?
+english.ExistRegistered=Version %1 is installed in:%n%2%n%nWhat would you like to do?
+spanish.ExistRegistered=La versión %1 está instalada en:%n%2%n%n¿Qué quieres hacer?
+brazilianportuguese.ExistRegistered=A versão %1 está instalada em:%n%2%n%nO que você quer fazer?
+english.ExistManual=A copy installed by hand (from the zip, or a build) is in:%n%1%n%nWhat would you like to do?
+spanish.ExistManual=Hay una copia instalada a mano (desde el zip o una compilación) en:%n%1%n%n¿Qué quieres hacer?
+brazilianportuguese.ExistManual=Há uma cópia instalada à mão (pelo zip ou por uma compilação) em:%n%1%n%nO que você quer fazer?
 english.ExistReplace=Replace it: update or reinstall (models, recordings, logs and settings are kept)
 spanish.ExistReplace=Sustituirla: actualizar o reinstalar (se conservan modelos, grabaciones, registros y ajustes)
 brazilianportuguese.ExistReplace=Substituir: atualizar ou reinstalar (modelos, gravações, registros e configurações são mantidos)
