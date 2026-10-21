@@ -197,6 +197,27 @@ on the RTX 4070 SUPER with large-v3-turbo (Vulkan), language forced to English, 
   were checked on screen in Portuguese: the Whisper rows hide and reappear when the recogniser changes,
   and the fine print follows the selection.
 
+## Silero speech detection (2026-10-21)
+
+`Listening.SpeechDetector = Silero` (default when the native build is present): Silero VAD v6.2.0 (MIT,
+885 KB, `vad\`), run on the CPU through whisper.cpp's streaming VAD API, in 32 ms windows. It replaces the
+loudness detector for when speech starts and stops (start at probability 0.5, continue above 0.35), and a
+**speech gate** never sends Whisper audio with less than 0.15 s of detected speech. Final recognition also
+gets only the detected speech plus 0.25 s either side (`SpeechOnly`), not the trailing silence.
+
+Hard test set: real recordings only. 18 noise-only clips (2 s each from Speech Commands'
+`_background_noise_`: dishes, running tap, exercise bike, white and pink noise, and a man meowing), and 30
+speech clips mixed with those noises at about 5 dB signal-to-noise. Voice Activation, turbo on Vulkan:
+
+| Detector | Hard set: correct / wrong / missed (of 30) | Hard set: false activations (of 18) | Clean set: correct (of 40) | Clean set: false activations (of 10) |
+|---|---|---|---|---|
+| Loudness | 21 / 5 / 4 and 19 / 7 / 4 (two runs) | 3 and 4 | 31 | 1 |
+| Silero | 17 / 9 / 4 and 18 / 8 / 4 | **0 and 0** | **32** | **0** |
+
+False activations are the clear win (most came from the man meowing, which loudness takes for speech and
+Silero doesn't). Accuracy differences of ±2 are within run-to-run noise (temperature fallback makes
+recognition slightly random). The game's own 2023 library has no VAD, so loudness remains its fallback.
+
 ## Open questions (to test with real speech)
 
 - How accurate tiny is on the game's words in each language, compared with Windows (the `[voice]` lines in

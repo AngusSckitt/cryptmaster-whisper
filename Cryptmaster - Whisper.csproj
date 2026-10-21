@@ -61,6 +61,8 @@
       <NativeVulkan Include="$(NativeVulkanDir)\*.dll;$(NativeVulkanDir)\LICENSE-whisper.cpp.txt" Exclude="$(NativeVulkanDir)\parakeet.dll" />
     </ItemGroup>
     <Copy SourceFiles="@(NativeVulkan)" DestinationFolder="$(PluginDir)\native\vulkan" SkipUnchangedFiles="true" Condition="Exists('$(NativeVulkanDir)\cmwhisper.dll')" />
+    <!-- Silero speech detection model. -->
+    <Copy SourceFiles="$(NativeVulkanDir)\ggml-silero-v6.2.0.bin" DestinationFolder="$(PluginDir)\vad" SkipUnchangedFiles="true" Condition="Exists('$(NativeVulkanDir)\ggml-silero-v6.2.0.bin')" />
   </Target>
 
 </Project>

@@ -19,6 +19,9 @@ namespace CryptmasterWhisper
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate IntPtr InitFn(byte[] modelUtf8, int useGpu);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate void FreeFn(IntPtr ctx);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int GpuFn(byte[] name, int size);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate IntPtr VadInitFn(byte[] modelUtf8);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate float VadProbFn(IntPtr vad, float[] samples, int n);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate void VadFn(IntPtr vad);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate int TranscribeFn(IntPtr ctx, float[] samples, int n, byte[] language, byte[] prompt, int audioCtx,
             int threads, int maxTokens, float temperatureInc, byte[] output, int outputSize, out float noSpeech);
@@ -36,6 +39,9 @@ namespace CryptmasterWhisper
         private InitFn _init;
         private FreeFn _free;
         private TranscribeFn _transcribe;
+        private VadInitFn _vadInit;
+        private VadProbFn _vadProb;
+        private VadFn _vadReset, _vadFree;
 
         /// <summary>The GPU in use ("" when recognition runs on the CPU), and its free memory in MB.</summary>
         internal string GpuName { get; private set; } = "";
@@ -78,6 +84,11 @@ namespace CryptmasterWhisper
             backend._init = Get<InitFn>("cmw_init");
             backend._free = Get<FreeFn>("cmw_free");
             backend._transcribe = Get<TranscribeFn>("cmw_transcribe");
+            // Silero voice activity detection (optional: older shims don't have it).
+            backend._vadInit = Get<VadInitFn>("cmw_vad_init");
+            backend._vadProb = Get<VadProbFn>("cmw_vad_prob");
+            backend._vadReset = Get<VadFn>("cmw_vad_reset");
+            backend._vadFree = Get<VadFn>("cmw_vad_free");
             if (version == null || version() != 1 || backend._init == null || backend._transcribe == null)
             {
                 Plugin.Log.LogWarning($"Whisper: {dll} is not a compatible cmwhisper.dll.");
@@ -111,6 +122,12 @@ namespace CryptmasterWhisper
         internal IntPtr LoadModel(string path) => _init(Utf8(path), UseGpu ? 1 : 0);
 
         internal void FreeModel(IntPtr model) => _free?.Invoke(model);
+
+        internal bool HasVad => _vadInit != null && _vadProb != null && _vadReset != null;
+        internal IntPtr LoadVad(string path) => HasVad ? _vadInit(Utf8(path)) : IntPtr.Zero;
+        /// <summary>Highest speech probability (0..1) over 16 kHz samples (a multiple of 512), or -1.</summary>
+        internal float VadProbability(IntPtr vad, float[] samples16k) => _vadProb(vad, samples16k, samples16k.Length);
+        internal void VadReset(IntPtr vad) => _vadReset(vad);
 
         internal string Transcribe(IntPtr model, float[] samples16k, string language, string prompt, int audioCtx, int threads,
             int maxTokens, float temperatureInc, out float noSpeech)

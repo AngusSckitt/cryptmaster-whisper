@@ -13,7 +13,7 @@ $stage = Join-Path $dist 'stage'
 if (-not (Test-Path "$NativeDir\cmwhisper.dll")) { throw "No Vulkan build in $NativeDir; run tools\build-whisper-vulkan.ps1 first." }
 if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
 $plugin = Join-Path $stage 'plugin'
-New-Item -ItemType Directory -Force "$plugin\textos", "$plugin\native\vulkan", "$plugin\models", "$stage\bepinex" | Out-Null
+New-Item -ItemType Directory -Force "$plugin\textos", "$plugin\native\vulkan", "$plugin\models", "$plugin\vad", "$stage\bepinex" | Out-Null
 
 # The mod (built without deploying to the game).
 dotnet build "$root\Cryptmaster - Whisper.csproj" -c Release --nologo -v q -p:Version=$Version -p:NativeVulkanDir=$NativeDir -p:DeployToGame=false | Out-Null
@@ -23,6 +23,7 @@ Copy-Item "$root\textos\*.txt" "$plugin\textos"
 Copy-Item "$root\LICENSE", "$root\THIRD-PARTY-NOTICES.txt", "$root\README.md" $plugin
 Get-ChildItem $NativeDir -Filter *.dll | Where-Object Name -ne 'parakeet.dll' | Copy-Item -Destination "$plugin\native\vulkan"
 Copy-Item "$NativeDir\LICENSE-whisper.cpp.txt" "$plugin\native\vulkan"
+Copy-Item "$NativeDir\ggml-silero-v6.2.0.bin" "$plugin\vad"   # Silero speech detection (MIT)
 # The installer's model benchmark (it also uses the native\vulkan files).
 New-Item -ItemType Directory -Force "$stage\bench" | Out-Null
 Copy-Item "$NativeDir\cmwbench.exe" "$stage\bench"

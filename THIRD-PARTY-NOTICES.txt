@@ -4,6 +4,9 @@ It is distributed together with, or downloads, the following third-party compone
 whisper.cpp (native\vulkan, native\cuda): MIT License, Copyright (c) 2023-2026 The ggml authors.
   https://github.com/ggml-org/whisper.cpp ; full text in native\vulkan\LICENSE-whisper.cpp.txt
 
+Silero VAD (vad\ggml-silero-v6.2.0.bin, speech detection): MIT License, Copyright (c) 2020-present Silero Team.
+  https://github.com/snakers4/silero-vad ; ggml conversion from https://huggingface.co/ggml-org/whisper-vad
+
 OpenAI Whisper models (optional downloads into models\, ggml conversions from
   https://huggingface.co/ggerganov/whisper.cpp): MIT License, Copyright (c) 2022 OpenAI.
 

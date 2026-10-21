@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using UnityEngine;
@@ -171,6 +172,66 @@ namespace CryptmasterWhisper
         }
 
         internal static string BackendName => _native == null ? "game" : _native.Variant + (_native.UseGpu ? "" : "-cpu");
+
+        // ---- Silero voice activity detection ----
+
+        private static IntPtr _vad;
+        private static NativeBackend _vadOwner; // the backend whose DLL holds it (stays loaded)
+        private static bool _vadTried;
+        private static readonly object VadLock = new();
+
+        /// <summary>
+        /// The Silero VAD (vad\ggml-silero-*.bin, through the native backend), loaded once; Zero when it isn't
+        /// available (the game's own library, an old shim, the file missing, or Listening.SpeechDetector =
+        /// Energy). It runs on the CPU and has its own context, so it can run while a recognition is going.
+        /// </summary>
+        internal static IntPtr Vad
+        {
+            get
+            {
+                lock (VadLock)
+                {
+                    if (_vadTried)
+                    {
+                        return _vad;
+                    }
+                    _vadTried = true;
+                    if (Plugin.SpeechDetector.Value != Plugin.DetectorSilero)
+                    {
+                        return _vad;
+                    }
+                    lock (Lock)
+                    {
+                        ChooseBackend();
+                    }
+                    string folder = Path.Combine(Plugin.Folder, "vad");
+                    string model = Directory.Exists(folder) ? Directory.GetFiles(folder, "ggml-silero-*.bin").OrderByDescending(f => f).FirstOrDefault() : null;
+                    if (_native == null || !_native.HasVad || model == null)
+                    {
+                        Plugin.Log.LogInfo("Whisper: Silero speech detection not available; detecting speech by loudness.");
+                        return _vad;
+                    }
+                    _vad = _native.LoadVad(model);
+                    _vadOwner = _native;
+                    Plugin.Log.LogInfo(_vad != IntPtr.Zero ? $"Whisper: Silero speech detection loaded ({Path.GetFileName(model)})." : "Whisper: Silero speech detection could not be loaded; detecting speech by loudness.");
+                    return _vad;
+                }
+            }
+        }
+
+        internal static float VadProbability(float[] samples16k)
+        {
+            IntPtr vad = Vad;
+            return vad == IntPtr.Zero ? -1f : _vadOwner.VadProbability(vad, samples16k);
+        }
+
+        internal static void VadReset()
+        {
+            if (_vad != IntPtr.Zero)
+            {
+                _vadOwner.VadReset(_vad);
+            }
+        }
 
         /// <summary>Folds a real final-result time into the measured time of the backend in use (shown in the menu).</summary>
         internal static void RecordLatency(long inferenceMs)

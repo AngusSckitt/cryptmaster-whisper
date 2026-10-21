@@ -27,6 +27,8 @@ try {
     New-Item -ItemType Directory -Force $out | Out-Null
     Copy-Item "$build\bin\Release\*.dll", "$build\bin\Release\whisper-cli.exe", "$build\bin\Release\cmwbench.exe" $out -Force
     Copy-Item "$src\LICENSE" "$out\LICENSE-whisper.cpp.txt" -Force
+    # Silero speech detection (MIT, Silero Team): whisper.cpp's repository carries the same file as ggml-org/whisper-vad.
+    Copy-Item "$src\models\for-tests-silero-v6.2.0-ggml.bin" "$out\ggml-silero-v6.2.0.bin" -Force
     Get-ChildItem $out | ForEach-Object { '{0,-36} {1,8:N1} MB' -f $_.Name, ($_.Length / 1MB) }
     "Built whisper.cpp $Version (Vulkan) in $Work\out"
 }

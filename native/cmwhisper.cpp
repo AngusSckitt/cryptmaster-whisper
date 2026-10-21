@@ -89,6 +89,43 @@ CMW_API int cmw_gpu(char * name, int name_size) {
     return -1;
 }
 
+// ---- Silero voice activity detection (speech vs. noise, music, typing...) ----
+
+// Loads a Silero VAD model (ggml); it runs on the CPU, next to recognition. Null on failure.
+CMW_API void * cmw_vad_init(const char * model_path) {
+    if (!g_backends_loaded) {
+        std::string folder = own_folder();
+        preload_runtimes(folder);
+        ggml_backend_load_all_from_path(folder.c_str());
+        g_backends_loaded = true;
+    }
+    whisper_vad_context_params p = whisper_vad_default_context_params();
+    p.n_threads = 1;
+    p.use_gpu = false;
+    return whisper_vad_init_from_file_with_params(model_path, p);
+}
+
+// Streaming: feeds the newest audio (16 kHz mono; a multiple of 512 samples) and returns the highest speech
+// probability among the windows it covered (0..1), or -1 on failure. The network keeps its memory between
+// calls; call cmw_vad_reset between utterances.
+CMW_API float cmw_vad_prob(void * vctx, const float * samples, int n_samples) {
+    if (!vctx || n_samples <= 0) return -1.0f;
+    if (!whisper_vad_detect_speech_no_reset((whisper_vad_context *) vctx, samples, n_samples)) return -1.0f;
+    int n = whisper_vad_n_probs((whisper_vad_context *) vctx);
+    const float * probs = whisper_vad_probs((whisper_vad_context *) vctx);
+    float best = 0.0f;
+    for (int i = 0; i < n; i++) if (probs[i] > best) best = probs[i];
+    return best;
+}
+
+CMW_API void cmw_vad_reset(void * vctx) {
+    if (vctx) whisper_vad_reset_state((whisper_vad_context *) vctx);
+}
+
+CMW_API void cmw_vad_free(void * vctx) {
+    if (vctx) whisper_vad_free((whisper_vad_context *) vctx);
+}
+
 CMW_API void cmw_free(void * ctx) {
     if (ctx) whisper_free((whisper_context *) ctx);
 }

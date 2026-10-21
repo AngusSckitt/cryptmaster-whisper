@@ -57,6 +57,14 @@ namespace CryptmasterWhisper
         private SaveManager _cachedSave;
         private float _nextActivationCheck;
         private bool _fake;            // Testing.FakeMicrophone: recorded clips instead of the microphone
+        // Silero speech detection (else loudness): 16 kHz samples waiting for a whole 512-sample window, the
+        // latest speech probability, and how many frames of this utterance were speech.
+        private bool _useVad;
+        private readonly List<float> _vadPending = new();
+        private float _vadProb;
+        private int _speechFrames;
+        // Where speech was detected in the utterance (sample indices), to trim the rest before recognition.
+        private int _firstVoicedSample = -1, _lastVoicedSample = -1;
         private float _nextFakePress;
 
         private void Awake() => Instance = this;
@@ -112,6 +120,8 @@ namespace CryptmasterWhisper
             _sessionAudio.Clear();
             _preRoll.Clear();
             _noiseFloor = 0.002f;
+            _useVad = WhisperEngine.Vad != IntPtr.Zero;
+            ResetVad();
             _busy = _finalPending = false;
             _sessionStart = _speechStart = _lastVoice = _lastPartial = Time.unscaledTime;
             _language = GameLanguages.ToWhisper(save.language);
@@ -296,8 +306,50 @@ namespace CryptmasterWhisper
         }
 
         /// <summary>Voice Activation: back to listening for the next utterance, microphone still open.</summary>
+        private void ResetVad()
+        {
+            _vadPending.Clear();
+            _vadProb = 0f;
+            _speechFrames = 0;
+            _firstVoicedSample = _lastVoicedSample = -1;
+            if (_useVad)
+            {
+                WhisperEngine.VadReset();
+            }
+        }
+
+        /// <summary>Silero's speech probability for the audio up to this frame (resampled to 16 kHz, in
+        /// 512-sample windows; the latest value until a new window is complete), or -1 if unavailable.</summary>
+        private float SpeechProbability(float[] frame)
+        {
+            if (_frequency == PreferredFrequency)
+            {
+                _vadPending.AddRange(frame);
+            }
+            else
+            {
+                int n = (int)((long)frame.Length * PreferredFrequency / _frequency);
+                for (int i = 0; i < n; i++)
+                {
+                    _vadPending.Add(frame[(int)((long)i * _frequency / PreferredFrequency)]);
+                }
+            }
+            while (_vadPending.Count >= 512)
+            {
+                float p = WhisperEngine.VadProbability(_vadPending.GetRange(0, 512).ToArray());
+                _vadPending.RemoveRange(0, 512);
+                if (p < 0f)
+                {
+                    return -1f;
+                }
+                _vadProb = p;
+            }
+            return _vadProb;
+        }
+
         private void ResetToWaiting()
         {
+            ResetVad();
             SaveRecord();
             SetEar(false, 0f);
             _state = State.Waiting;
@@ -359,9 +411,11 @@ namespace CryptmasterWhisper
                 Microphone.End(null); // nothing more to hear in this session
             }
             float minimum = _continuous ? MinActivatedSpeech : 0.15f;
-            if (_utterance.Count < _frequency * minimum)
+            // The speech gate: Whisper is never handed audio Silero found (almost) no speech in.
+            bool noSpeech = _useVad && Plugin.SpeechGate.Value && _speechFrames * FrameSeconds < 0.15f;
+            if (_utterance.Count < _frequency * minimum || noSpeech)
             {
-                Plugin.Log.LogInfo("Whisper: too short to recognise.");
+                Plugin.Log.LogInfo(noSpeech ? "Whisper: no speech in what was heard (Silero); not recognised." : "Whisper: too short to recognise.");
                 if (_fake && !_continuous) FakeMicrophone.Score("");
                 if (_continuous)
                 {
@@ -452,9 +506,20 @@ namespace CryptmasterWhisper
                 sum += s * s;
             }
             float rms = Mathf.Sqrt(sum / frame.Length);
-            bool voiced = rms > Mathf.Max(_noiseFloor * Plugin.VoiceThreshold.Value, 0.01f);
+            bool loud = rms > Mathf.Max(_noiseFloor * Plugin.VoiceThreshold.Value, 0.01f);
+            bool voiced = loud;
+            if (_useVad)
+            {
+                float probability = SpeechProbability(frame);
+                // Starting takes a clearer signal than carrying on.
+                float threshold = _state == State.Speaking ? Plugin.SpeechThreshold.Value * 0.7f : Plugin.SpeechThreshold.Value;
+                if (probability >= 0f)
+                {
+                    voiced = probability >= threshold;
+                }
+            }
             float now = Time.unscaledTime;
-            if (!voiced)
+            if (!loud)
             {
                 // Follow the background noise slowly, so speech doesn't raise it.
                 _noiseFloor = Mathf.Lerp(_noiseFloor, rms, 0.05f);
@@ -476,6 +541,12 @@ namespace CryptmasterWhisper
                 _utterance.AddRange(frame);
                 if (voiced)
                 {
+                    _speechFrames++;
+                    if (_firstVoicedSample < 0)
+                    {
+                        _firstVoicedSample = _utterance.Count - frame.Length;
+                    }
+                    _lastVoicedSample = _utterance.Count;
                     _lastVoice = now;
                     SetEarColour(1f);
                     if (!_pushToTalk)
@@ -489,6 +560,9 @@ namespace CryptmasterWhisper
             {
                 _state = State.Speaking;
                 _speechStart = _lastVoice = _lastPartial = now;
+                _speechFrames = 1;
+                _firstVoicedSample = _utterance.Count - frame.Length;
+                _lastVoicedSample = _utterance.Count;
                 _utterance.Clear();
                 foreach (float[] f in _preRoll)
                 {
@@ -517,9 +591,26 @@ namespace CryptmasterWhisper
             }
         }
 
+        /// <summary>
+        /// The utterance trimmed to where speech was detected, with 0.25 s either side: the silence (or noise)
+        /// waited for before deciding speech had ended, or held in Push to Talk, isn't speech, and Whisper given
+        /// a word followed by noise tends to add syllables to it.
+        /// </summary>
+        private float[] SpeechOnly()
+        {
+            if (_firstVoicedSample < 0 || _lastVoicedSample <= _firstVoicedSample)
+            {
+                return _utterance.ToArray();
+            }
+            int pad = (int)(_frequency * 0.25f);
+            int start = Mathf.Max(0, _firstVoicedSample - pad);
+            int end = Mathf.Min(_utterance.Count, _lastVoicedSample + pad);
+            return _utterance.GetRange(start, end - start).ToArray();
+        }
+
         private void Recognise(bool isFinal)
         {
-            float[] audio = _utterance.ToArray();
+            float[] audio = isFinal ? SpeechOnly() : _utterance.ToArray();
             int frequency = _frequency, generation = _generation;
             string language = _language, prompt = _prompt, gameLanguage = _gameLanguage;
             _busy = true;

@@ -44,6 +44,9 @@ namespace CryptmasterWhisper
         internal static ConfigEntry<float> MaxHoldSeconds;
         internal static ConfigEntry<bool> RecordSessions;
         internal static ConfigEntry<string> FakeMicrophone;
+        internal static ConfigEntry<string> SpeechDetector;
+        internal static ConfigEntry<float> SpeechThreshold;
+        internal static ConfigEntry<bool> SpeechGate;
 
         internal static bool UseWhisper => Engine.Value == EngineWhisper;
         internal static bool PushToTalk => Listening.Value == ListenPushToTalk;
@@ -51,6 +54,7 @@ namespace CryptmasterWhisper
         internal const string EngineWindows = "Windows";
         internal const string EngineWhisper = "Whisper";
         internal const string BackendAuto = "Auto", BackendVulkan = "Vulkan", BackendCuda = "CUDA", BackendCpu = "CPU", BackendGame = "Game";
+        internal const string DetectorSilero = "Silero", DetectorEnergy = "Energy";
         internal const string ListenAutomatic = "Automatic";
         internal const string ListenPushToTalk = "PushToTalk";
         internal const string ListenVoiceActivation = "VoiceActivation";
@@ -96,6 +100,11 @@ namespace CryptmasterWhisper
             Listening = Config.Bind("Listening", "Mode", ListenAutomatic,
                 new ConfigDescription("Whisper only. Automatic (Tap to Toggle, like the original game): press the Ear button, speak, and the end of speech is detected. PushToTalk: hold the Ear button while speaking; nothing is heard otherwise (useful in noisy rooms). VoiceActivation: always listening while playing, no button needed; ignores the microphone while the game's own voice plays; headphones recommended.",
                     new AcceptableValueList<string>(ListenAutomatic, ListenPushToTalk, ListenVoiceActivation)));
+            SpeechDetector = Config.Bind("Listening", "SpeechDetector", DetectorSilero,
+                new ConfigDescription("How speech is told apart from silence and noise. Silero: a small speech-detection network (vad folder; needs the native whisper.cpp build), which ignores most noise, music and typing. Energy: loudness against the background (always available; the fallback).",
+                    new AcceptableValueList<string>(DetectorSilero, DetectorEnergy)));
+            SpeechThreshold = Config.Bind("Listening", "SpeechThreshold", 0.5f, "Silero: speech probability (0-1) that starts an utterance; it continues while above 70% of this. Higher ignores more noise but may miss soft speech.");
+            SpeechGate = Config.Bind("Listening", "SpeechGate", true, "Silero: don't send audio to Whisper unless it found at least 0.15 s of speech in it (Whisper otherwise invents words for noise).");
             MaxHoldSeconds = Config.Bind("Listening", "MaxHoldSeconds", 10f, "Push to talk: longest recording while the button is held.");
             RecordSessions = Config.Bind("Testing", "RecordSessions", false,
                 "Saves every Ear-button session (either recogniser) as a WAV plus what was recognised, in this plugin's recordings folder, so tests can be replayed through other models (tools\\replay). Recordings stay on this computer.");
