@@ -110,7 +110,11 @@ var
   FoundCaption: array of String;
   FoundWarning: array of String;
   FoundBox: array of TNewCheckBox;
+  FoundWarn: array of TNewStaticText;
+  Ticked: TStringList;  // paths ticked for deletion, kept across Back and Next
   FoundDetected: Boolean;
+  // Replacing an installation made by this installer (set on the "already installed" page).
+  Upgrading: Boolean;
   // Shown under the components list while CUDA is ticked.
   CudaNote: TNewStaticText;
   // Results for the finish page.
@@ -142,6 +146,22 @@ var
   EventLogFile: String;      // '' until the mod folder exists
   LiveLog: TNewMemo;
 
+// Appends one line to a log, UTF-8 (the texts have accents). Retries for a moment: a text editor opening
+// the log (the finish page's option) can hold it while the last lines are written.
+procedure AppendLogLine(FileName, Line: String);
+var
+  Lines: TArrayOfString;
+  Tries: Integer;
+begin
+  SetArrayLength(Lines, 1);
+  Lines[0] := Line;
+  for Tries := 1 to 20 do
+  begin
+    if SaveStringsToUTF8FileWithoutBOM(FileName, Lines, True) then Exit;
+    Sleep(100);
+  end;
+end;
+
 procedure EventLog(S: String);
 var
   Line: String;
@@ -153,7 +173,7 @@ begin
   StringChangeEx(Line, #13#10, #13#10 + '                         ', True);
   if EventLines = nil then EventLines := TStringList.Create;
   EventLines.Add(Line);
-  if EventLogFile <> '' then SaveStringToFile(EventLogFile, Line + #13#10, True);
+  if EventLogFile <> '' then AppendLogLine(EventLogFile, Line);
   if LiveLog <> nil then
   begin
     LiveLog.Lines.Add(Line);
@@ -345,10 +365,11 @@ begin
   end;
 end;
 
-// Offered for download only on NVIDIA PCs that don't have it already (if it's there, it's tested anyway).
+// Listed on NVIDIA PCs only (if it's there already, it isn't downloaded again but it's tested anyway).
 function CudaOffered: Boolean;
 begin
-  Result := HasNvidiaGpu and not CudaPresent;
+  // Whether it's already there is only known once the folder is: UpdateCudaItem greys it out then.
+  Result := HasNvidiaGpu;
 end;
 
 function NeedsVcRuntime: Boolean;
@@ -408,7 +429,19 @@ var
   Known: Integer;
   Note, Sessions: String;
 begin
+  // Again after Back: the previous folder's checkboxes go first, remembering what was ticked (the same
+  // things found again stay ticked).
+  if Ticked = nil then Ticked := TStringList.Create;
+  Ticked.Clear;
+  for Known := 0 to GetArrayLength(FoundBox) - 1 do
+  begin
+    if (FoundBox[Known] <> nil) and FoundBox[Known].Checked then Ticked.Add(Lowercase(FoundPath[Known]));
+    if FoundBox[Known] <> nil then FoundBox[Known].Free;
+    if FoundWarn[Known] <> nil then FoundWarn[Known].Free;
+  end;
   FoundCount := 0;
+  SetArrayLength(FoundWarn, MaxFound);
+  for Known := 0 to MaxFound - 1 do FoundWarn[Known] := nil;
   SetArrayLength(FoundPath, MaxFound);
   SetArrayLength(FoundIsDir, MaxFound);
   SetArrayLength(FoundIsSettings, MaxFound);
@@ -462,6 +495,12 @@ begin
     if (not FoundIsSettings[I]) and (CompareText(FoundPath[I], Path) = 0) and (FoundBox[I] <> nil) and FoundBox[I].Checked then Result := True;
 end;
 
+// CUDA ticked and needing a download: not there yet, or there but ticked for deletion (then downloaded afresh).
+function CudaWanted: Boolean;
+begin
+  Result := WizardIsComponentSelected('cuda') and ((not CudaPresent) or MarkedForDeletion(CudaDir));
+end;
+
 function ReplaceSettings: Boolean;
 var
   I: Integer;
@@ -490,7 +529,7 @@ begin
     Box.Width := Page.SurfaceWidth;
     Box.Height := ScaleY(17);
     Box.Caption := FoundCaption[I];
-    Box.Checked := False;
+    Box.Checked := (Ticked <> nil) and (Ticked.IndexOf(Lowercase(FoundPath[I])) >= 0);
     FoundBox[I] := Box;
     Warn := TNewStaticText.Create(Page);
     Warn.Parent := Page.Surface;
@@ -503,6 +542,7 @@ begin
     Warn.Font.Style := [fsBold];
     Warn.Font.Color := clRed;
     Warn.Caption := FoundWarning[I];
+    FoundWarn[I] := Warn;
     Y := Y + ScaleY(52);
   end;
 end;
@@ -655,9 +695,11 @@ begin
   BenchPage.RichEditViewer.Text := Report;
   EventLog(Report);
   if not Interactive then Exit;
-  // Tick the recommendations on the components page.
-  for I := 1 to ModelCount - 1 do
-    WizardSelectComponents('!' + ModelComponent(I));
+  // Tick the recommendations on the components page. Replacing an installation keeps the models it had
+  // ticked (unticking them would only bring up Inno's "components exist" warning; they'd stay anyway).
+  if not Upgrading then
+    for I := 1 to ModelCount - 1 do
+      WizardSelectComponents('!' + ModelComponent(I));
   if (GpuName <> '') and (GpuPick > 0) then WizardSelectComponents(ModelComponent(GpuPick));
   if CpuPick > 0 then WizardSelectComponents(ModelComponent(CpuPick));
 end;
@@ -713,7 +755,7 @@ var
 procedure Note(S: String);
 begin
   EventLog(S);
-  SaveStringToFile(ManualLogFile, GetDateTimeString('yyyy-mm-dd hh:nn:ss.zzz', '-', ':') + '  ' + S + #13#10, True);
+  AppendLogLine(ManualLogFile, GetDateTimeString('yyyy-mm-dd hh:nn:ss.zzz', '-', ':') + '  ' + S);
 end;
 
 // Removes a hand-installed copy: only the mod's own files, never models, recordings, logs or settings.
@@ -721,7 +763,7 @@ procedure RemoveManualInstall;
 var
   Plugin: String;
   I: Integer;
-  Own: array[0..7] of String;
+  Own: array[0..8] of String;
 begin
   Plugin := AddBackslash(ExistingDir) + '{#PluginSub}';
   ForceDirectories(Plugin + '\logs');
@@ -729,8 +771,8 @@ begin
   Note('Uninstall started (installed by hand): Cryptmaster Whisper, in ' + ExistingDir);
   Own[0] := 'CryptmasterWhisper.dll'; Own[1] := 'CryptmasterWhisper.pdb'; Own[2] := 'LICENSE';
   Own[3] := 'THIRD-PARTY-NOTICES.txt'; Own[4] := 'README.md'; Own[5] := 'models\README.txt';
-  Own[6] := 'native\vulkan'; Own[7] := 'textos';
-  for I := 0 to 7 do
+  Own[6] := 'native\vulkan'; Own[7] := 'textos'; Own[8] := 'vad';
+  for I := 0 to 8 do
     if DirExists(Plugin + '\' + Own[I]) then
     begin
       DelTree(Plugin + '\' + Own[I], True, True, True);
@@ -792,6 +834,7 @@ begin
   begin
     EventLog('Existing installation: replacing it (models, recordings, logs and settings are kept).');
     if ExistingKind = 1 then WizardForm.DirEdit.Text := ExistingDir;
+    Upgrading := ExistingKind = 1;
     Exit;
   end;
   EventLog('Existing installation: removing it.');
@@ -866,9 +909,13 @@ begin
   else EventLog('No existing installation found.');
 end;
 
+var
+  ComponentsClickCheck: TNotifyEvent; // Inno's own handler (updates the disk space needed)
+
 procedure UpdateCudaNote(Sender: TObject);
 begin
-  CudaNote.Visible := WizardIsComponentSelected('cuda');
+  if (Sender <> nil) and (ComponentsClickCheck <> nil) then ComponentsClickCheck(Sender);
+  CudaNote.Visible := WizardIsComponentSelected('cuda') and not CudaPresent;
 end;
 
 procedure CreateCudaNote;
@@ -886,6 +933,8 @@ begin
   List.Height := List.Height - ScaleY(20);
   CudaNote.Top := List.Top + List.Height + ScaleY(4);
   CudaNote.Visible := False;
+  // Chained, not replaced: Inno's handler keeps the "requires at least ... MB" line up to date.
+  ComponentsClickCheck := List.OnClickCheck;
   List.OnClickCheck := @UpdateCudaNote;
 end;
 
@@ -896,6 +945,12 @@ const
 
 var
   PtModBox: TNewCheckBox;
+  PtModLabel: TNewStaticText;
+
+procedure PtModLabelClick(Sender: TObject);
+begin
+  PtModBox.Checked := not PtModBox.Checked;
+end;
 
 function PtModInstalled: Boolean;
 begin
@@ -916,8 +971,24 @@ begin
     PtModBox.Top := WizardForm.RunList.Top + WizardForm.RunList.Height + ScaleY(6)
   else
     PtModBox.Top := WizardForm.FinishedPage.ClientHeight - ScaleY(44);
-  PtModBox.Caption := Msg('PtModOffer');
+  // Never below the bottom of the page.
+  if PtModBox.Top + PtModBox.Height > WizardForm.FinishedPage.ClientHeight - ScaleY(4) then
+    PtModBox.Top := WizardForm.FinishedPage.ClientHeight - PtModBox.Height - ScaleY(4);
   PtModBox.Checked := True;
+  // Checkboxes don't wrap their caption: it goes in a label beside the box (clicking it ticks the box too).
+  PtModBox.Width := ScaleX(17);
+  PtModBox.Caption := '';
+  PtModLabel := TNewStaticText.Create(WizardForm);
+  PtModLabel.Parent := WizardForm.FinishedPage;
+  PtModLabel.Left := PtModBox.Left + ScaleX(20);
+  PtModLabel.Top := PtModBox.Top + ScaleY(1);
+  PtModLabel.Width := WizardForm.FinishedLabel.Width - ScaleX(20);
+  PtModLabel.AutoSize := False;
+  PtModLabel.WordWrap := True;
+  PtModLabel.Height := PtModBox.Height;
+  PtModLabel.Caption := Msg('PtModOffer');
+  PtModLabel.OnClick := @PtModLabelClick;
+  PtModBox.Height := ScaleY(17);
 end;
 
 // The latest release's installer (an .exe asset) from the PT mod's GitHub repository; '' if none.
@@ -983,11 +1054,53 @@ begin
   ShellExec('open', 'https://github.com/' + PtRepo + '/releases/latest', '', '', SW_SHOWNORMAL, ewNoWait, Code);
 end;
 
+var
+  FolderDone: Boolean;
+
+// The game folder is settled: look for what's already there. Runs when leaving the folder page, or (when
+// Inno skips that page, as it does when replacing an installation) on reaching the benchmark page.
+procedure FolderChosen;
+var
+  I: Integer;
+begin
+  FolderDone := True;
+  EventLog('Game folder: ' + WizardDirValue);
+  DetectFound;
+  BuildFoundPage;
+  if FoundCount = 0 then EventLog('Nothing of the mod''s was already there.');
+  for I := 0 to FoundCount - 1 do
+    EventLog('Already there: ' + FoundPath[I]);
+end;
+
+// The CUDA item: when a CUDA folder is already there, it isn't downloaded again (it's timed anyway), so the
+// item is greyed out and says so. Its tick, if any, is left alone: unticking something installed before
+// would only bring up Inno's "components exist" warning.
+procedure UpdateCudaItem;
+var
+  I: Integer;
+begin
+  for I := 0 to WizardForm.ComponentsList.Items.Count - 1 do
+    if WizardForm.ComponentsList.ItemObject[I] <> nil then
+      if Pos('CUDA', WizardForm.ComponentsList.ItemCaption[I]) > 0 then
+      begin
+        WizardForm.ComponentsList.ItemEnabled[I] := not CudaPresent;
+        if CudaPresent then WizardForm.ComponentsList.ItemCaption[I] := Msg('CompCudaPresent');
+      end;
+end;
+
 procedure CurPageChanged(CurPageID: Integer);
 begin
-  if CurPageID = wpSelectComponents then UpdateCudaNote(nil)
+  if CurPageID = wpSelectComponents then
+  begin
+    UpdateCudaItem;
+    UpdateCudaNote(nil);
+  end
   // Inno calls this in silent installs too: there, nothing is ticked on the player's behalf.
-  else if CurPageID = BenchPage.ID then RunBenchmark(not WizardSilent)
+  else if CurPageID = BenchPage.ID then
+  begin
+    if not FolderDone then FolderChosen;
+    RunBenchmark(not WizardSilent);
+  end
   else if CurPageID = wpFinished then
   begin
     WizardForm.FinishedLabel.Caption := Msg('Finished') + #13#10#13#10 + Summary;
@@ -997,13 +1110,17 @@ begin
     // the checkboxes below it.
     WizardForm.FinishedLabel.AdjustHeight;
     WizardForm.RunList.Top := WizardForm.FinishedLabel.Top + WizardForm.FinishedLabel.Height + ScaleY(8);
+    // The list reaches the bottom of the page by default: shrink it to its items, so anything placed under
+    // it (the PT localisation offer) is on the page and can be seen and unticked.
+    if WizardForm.RunList.Items.Count > 0 then
+      WizardForm.RunList.Height := WizardForm.RunList.Items.Count * ScaleY(22) + ScaleY(4);
     ShowPtModOffer;
   end;
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
-  Result := ((PageID = ExistingPage.ID) and (ExistingKind = 0)) or ((PageID = CudaPage.ID) and not WizardIsComponentSelected('cuda'))
+  Result := ((PageID = ExistingPage.ID) and (ExistingKind = 0)) or ((PageID = CudaPage.ID) and not CudaWanted)
     or ((PageID = FoundPage.ID) and (FoundCount = 0))
     or ((PageID = FoundPage2.ID) and (FoundCount <= 4));
 end;
@@ -1036,12 +1153,7 @@ begin
       Result := False;
       Exit;
     end;
-    EventLog('Game folder: ' + WizardDirValue);
-    DetectFound;
-    BuildFoundPage;
-    if FoundCount = 0 then EventLog('Nothing of the mod''s was already there.');
-    for I := 0 to FoundCount - 1 do
-      EventLog('Already there: ' + FoundPath[I]);
+    FolderChosen;
   end
   else if CurPageID = wpSelectComponents then
     EventLog('Components chosen: ' + WizardSelectedComponents(False))
@@ -1058,7 +1170,7 @@ begin
       end
       else if WizardIsComponentSelected(ModelComponent(I)) then
         EventLog('Not downloading ' + ModelFile(I) + ': already there.');
-    if WizardIsComponentSelected('cuda') then
+    if CudaWanted then
     begin
       DownloadPage.Add('{#CudaUrl}', 'whisper-cuda.zip', '{#CudaSha}');
       EventLog('To download: the CUDA backend from {#CudaUrl} (SHA-256 checked)');
@@ -1316,7 +1428,7 @@ begin
   EventLogFile := PluginDir + '\logs\install-' + GetDateTimeString('yyyymmdd-hhnnss', '-', ':') + '.log';
   if EventLines <> nil then
     for I := 0 to EventLines.Count - 1 do
-      SaveStringToFile(EventLogFile, EventLines[I] + #13#10, True);
+      AppendLogLine(EventLogFile, EventLines[I]);
   // The logs folder isn't recorded for the uninstaller: logs survive an uninstall.
   EventLog('Event log: ' + EventLogFile);
 end;
@@ -1410,7 +1522,7 @@ begin
     UninstallLogFile := ExpandConstant('{app}\{#PluginSub}\logs\uninstall-') + GetDateTimeString('yyyymmdd-hhnnss', '-', ':') + '.log';
   end;
   Line := GetDateTimeString('yyyy-mm-dd hh:nn:ss.zzz', '-', ':') + '  ' + S;
-  SaveStringToFile(UninstallLogFile, Line + #13#10, True);
+  AppendLogLine(UninstallLogFile, Line);
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
@@ -1451,6 +1563,9 @@ begin
   // Remove folders only if they're now empty (anything else in them was someone else's).
   RemoveDir(Plugin + '\models');
   RemoveDir(Plugin + '\native\cuda');
+  // Folders a hand-installed copy had made before this installer came along (Inno keeps those).
+  RemoveDir(Plugin + '\native\vulkan');
+  RemoveDir(Plugin + '\vad');
   RemoveDir(Plugin + '\native');
   RemoveDir(Plugin + '\textos');
   RemoveDir(Plugin);
