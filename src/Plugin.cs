@@ -47,6 +47,8 @@ namespace CryptmasterWhisper
         internal static ConfigEntry<string> SpeechDetector;
         internal static ConfigEntry<float> SpeechThreshold;
         internal static ConfigEntry<bool> SpeechGate;
+        internal static ConfigEntry<bool> EchoGate;
+        internal static ConfigEntry<float> EchoMargin, FakeEcho, FakeEchoDelay;
 
         internal static bool UseWhisper => Engine.Value == EngineWhisper;
         internal static bool PushToTalk => Listening.Value == ListenPushToTalk;
@@ -105,11 +107,15 @@ namespace CryptmasterWhisper
                     new AcceptableValueList<string>(DetectorSilero, DetectorEnergy)));
             SpeechThreshold = Config.Bind("Listening", "SpeechThreshold", 0.5f, "Silero: speech probability (0-1) that starts an utterance; it continues while above 70% of this. Higher ignores more noise but may miss soft speech.");
             SpeechGate = Config.Bind("Listening", "SpeechGate", true, "Silero: don't send audio to Whisper unless it found at least 0.15 s of speech in it (Whisper otherwise invents words for noise).");
+            EchoGate = Config.Bind("Listening", "EchoGate", true, "While the game is loud, speech only starts if the microphone is clearly louder than the game's own sound coming back through it (learnt automatically; does nothing with headphones). Not used in Push to Talk.");
+            EchoMargin = Config.Bind("Advanced", "EchoMargin", 2f, "How much louder than the expected echo of the game the microphone must be for speech to start.");
             MaxHoldSeconds = Config.Bind("Listening", "MaxHoldSeconds", 10f, "Push to talk: longest recording while the button is held.");
             RecordSessions = Config.Bind("Testing", "RecordSessions", false,
                 "Saves every Ear-button session (either recogniser) as a WAV plus what was recognised, in this plugin's recordings folder, so tests can be replayed through other models (tools\\replay). Recordings stay on this computer.");
 
             FakeMicrophone = Config.Bind("Testing", "FakeMicrophone", "", "TESTING ONLY. A playlist file (path|expected word per line) of recordings of real people, fed in place of the microphone. Leave empty to use the microphone.");
+            FakeEcho = Config.Bind("Testing", "FakeEcho", 0f, "TESTING ONLY, with FakeMicrophone: mixes the game's own output into the fake microphone at this gain, as speakers would (0 = off).");
+            FakeEchoDelay = Config.Bind("Testing", "FakeEchoDelay", 0.12f, "TESTING ONLY: delay of the fake echo, in seconds.");
             CryptmasterWhisper.FakeMicrophone.Load();
             Texts.Load(Path.Combine(Folder, "textos"));
             new Harmony(PluginGuid).PatchAll(typeof(Plugin).Assembly);

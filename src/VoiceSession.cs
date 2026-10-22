@@ -65,6 +65,11 @@ namespace CryptmasterWhisper
         private int _speechFrames;
         // Where speech was detected in the utterance (sample indices), to trim the rest before recognition.
         private int _firstVoicedSample = -1, _lastVoicedSample = -1;
+        // Echo of the game through speakers: how loud the microphone is per unit of game output, learnt while
+        // the player isn't speaking (kept across sessions).
+        private static float _echoRatio;
+        private float _nextEchoLog;
+        private int _echoBlocked;
         private float _nextFakePress;
 
         private void Awake() => Instance = this;
@@ -306,6 +311,41 @@ namespace CryptmasterWhisper
         }
 
         /// <summary>Voice Activation: back to listening for the next utterance, microphone still open.</summary>
+        /// <summary>
+        /// While the game is loud, speech may only start if the microphone is clearly louder than the game's own
+        /// sound would make it (the learnt echo ratio times the game's output level). With headphones the
+        /// ratio stays near zero and nothing changes. Once speech has started it isn't cut off.
+        /// </summary>
+        private bool PassesEchoGate(float rms, bool voiced)
+        {
+            float output = GameOutputMonitor.Level;
+            if (!Plugin.EchoGate.Value || output < 0.002f)
+            {
+                return voiced;
+            }
+            // Learn from moments without speech (music, effects): the microphone then hears only echo and noise.
+            if (_state == State.Waiting && (_useVad ? _vadProb < 0.3f : !voiced))
+            {
+                _echoRatio = Mathf.Lerp(_echoRatio, Mathf.Min(rms / output, 10f), 0.02f);
+            }
+            if (Plugin.CompareLog.Value && Time.unscaledTime > _nextEchoLog)
+            {
+                _nextEchoLog = Time.unscaledTime + 10f;
+                Plugin.Log.LogInfo($"[echo] game output {output:0.0000}, echo ratio {_echoRatio:0.00}, blocked {_echoBlocked} frame(s) so far");
+            }
+            if (_state == State.Speaking || !voiced)
+            {
+                return voiced;
+            }
+            float expected = _echoRatio * output;
+            if (expected > 0.002f && rms < expected * Plugin.EchoMargin.Value)
+            {
+                _echoBlocked++;
+                return false;
+            }
+            return true;
+        }
+
         private void ResetVad()
         {
             _vadPending.Clear();
@@ -374,6 +414,7 @@ namespace CryptmasterWhisper
         private void Update()
         {
             DeliverResults();
+            GameOutputMonitor.Maintain();
             ManageVoiceActivation();
             PressEarForTests();
             if (!IsActive)
@@ -517,6 +558,10 @@ namespace CryptmasterWhisper
                 {
                     voiced = probability >= threshold;
                 }
+            }
+            if (!_pushToTalk)
+            {
+                voiced = PassesEchoGate(rms, voiced);
             }
             float now = Time.unscaledTime;
             if (!loud)

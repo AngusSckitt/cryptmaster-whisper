@@ -51,6 +51,27 @@ path": delay, filtering) and removes that estimate, leaving the player's voice.
 3. **Keep Windows' Voice Capture DSP as the fallback plan** if building AEC3 on Windows proves painful: it
    also covers other programs' sound, at the price of our own microphone capture path.
 
+## Step 1, done (2026-10-22): the echo gate
+
+`GameOutputMonitor` sits on the AudioListener and reads the game's final mix (`OnAudioFilterRead`): a
+loudness envelope that rises at once and falls over ~0.3 s (to cover the speaker-to-microphone delay). While
+the player isn't speaking (Silero below 0.3), the session learns the **echo ratio**: microphone loudness per
+unit of game output. While the game is loud, speech may only *start* if the microphone is at least
+`Advanced.EchoMargin` (2×) louder than ratio × output. Once speech has started it isn't cut off, and Push to
+Talk isn't gated. With headphones the ratio stays near zero and nothing changes.
+
+Test (clean set; the game's real output mixed into the fake microphone at gain 0.5 with 120 ms delay,
+`Testing.FakeEcho`; Voice Activation, Silero, turbo on Vulkan):
+
+| | Correct (of 40) | Missed | False activations (of 10) |
+|---|---|---|---|
+| No echo | 32 | 0 | 0 |
+| Echo, gate off | 24 | 3 | 4 |
+| Echo, gate on | 28 | 1 | 0 |
+
+The learnt ratio was 0.34–0.58 (true 0.5). The gate removes the game's sound as a trigger; the remaining
+loss (28 against 32) is echo mixed into the player's words, which only real cancellation (step 2) removes.
+
 ## How we'd test it
 
 The test harness can simulate echo with real recordings only: capture the game's own output (its voice

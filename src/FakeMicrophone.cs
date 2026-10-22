@@ -96,6 +96,11 @@ namespace CryptmasterWhisper
                     _sessionClipDone = true;
                 }
             }
+            // Testing.FakeEcho: the game's own output comes back into the "microphone", delayed, as through speakers.
+            if (Plugin.FakeEcho.Value > 0f)
+            {
+                GameOutputMonitor.ReadDelayed(output, count, Plugin.FakeEchoDelay.Value, Plugin.FakeEcho.Value);
+            }
             return output;
         }
 
