@@ -1369,7 +1369,11 @@ begin
       Summary := Summary + Msg('SumCudaFaster') + #13#10
     else
     begin
-      Summary := Summary + Msg('SumCudaNotFaster') + #13#10;
+      // More than 10% slower gets its own line; roughly even gets the polite one.
+      if (CudaMs >= 0) and (GpuMs > 0) and (CudaMs * 10 > GpuMs * 11) then
+        Summary := Summary + Msg('SumCudaSlower') + #13#10
+      else
+        Summary := Summary + Msg('SumCudaNotFaster') + #13#10;
       if CudaDownloaded and (SuppressibleMsgBox(Fmt('AskDeleteCuda', [IntToStr(CudaMs), IntToStr(GpuMs)]), mbConfirmation, MB_YESNO, IDNO) = IDYES) then
       begin
         DelTree(CudaDir, True, True, True);
