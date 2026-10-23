@@ -1294,6 +1294,7 @@ function TimeCuda(Model: Integer): Integer;
 var
   Lines: TArrayOfString;
   Exe: String;
+  Penalty: Integer;
 begin
   Result := -1;
   Exe := CudaDir + '\cmwbench-installer-test.exe';
@@ -1303,6 +1304,14 @@ begin
       Result := StrToIntDef(BenchValue(Lines, 'median_ms'), -1);
   finally
     DeleteFile(Exe);
+  end;
+  // Testing only: /TESTCUDAPENALTY=<ms> makes CUDA look slower, to exercise the "CUDA lost" path on a PC
+  // where it wins. Always logged.
+  Penalty := StrToIntDef(ExpandConstant('{param:TESTCUDAPENALTY|0}'), 0);
+  if (Result >= 0) and (Penalty > 0) then
+  begin
+    Result := Result + Penalty;
+    EventLog('TEST: /TESTCUDAPENALTY added ' + IntToStr(Penalty) + ' ms to the CUDA time (now ' + IntToStr(Result) + ' ms).');
   end;
 end;
 
