@@ -102,6 +102,9 @@ var
   // Per device (0 = GPU, 1 = CPU): estimated per-word ms for each model; -1 = can't run there.
   Estimate: array[0..1] of array[0..3] of Integer;
   GpuPick, CpuPick: Integer;
+  // The next model up for the CPU when its estimate is close to the budget (-1 = none): downloaded too,
+  // timed for real, and kept if it measures within the budget (the estimate is noisy near the line).
+  CpuStretch: Integer;
   // Things already there before this installation.
   FoundCount: Integer;
   FoundPath: array of String;
@@ -613,6 +616,14 @@ begin
     Estimate[Device][I] := (Est * 11 div 10) div 1000 + 20; // plus decoding a word, ms
     if (Device = 0) and (GpuFreeMb < VramNeedMb(I)) then Estimate[Device][I] := -1;
   end;
+  // Testing only: /TESTCPUESTIMATE=<percent> scales the CPU estimates (a borderline PC on demand). Always logged.
+  Est := StrToIntDef(ExpandConstant('{param:TESTCPUESTIMATE|0}'), 0);
+  if (Device = 1) and (Est > 0) then
+  begin
+    for I := 0 to ModelCount - 1 do
+      if Estimate[Device][I] >= 0 then Estimate[Device][I] := Estimate[Device][I] * Est div 100;
+    EventLog('TEST: /TESTCPUESTIMATE scaled the processor estimates to ' + IntToStr(Est) + '%.');
+  end;
 end;
 
 function Pick(Device: Integer): Integer;
@@ -671,6 +682,9 @@ begin
   end;
   if GpuName <> '' then GpuPick := Pick(0);
   CpuPick := Pick(1);
+  CpuStretch := -1;
+  if (CpuPick + 1 < ModelCount) and (Estimate[1][CpuPick + 1] >= 0) and (Estimate[1][CpuPick + 1] <= BudgetMs * 5 div 4) then
+    CpuStretch := CpuPick + 1;
 
   if GpuName <> '' then Report := Fmt('RepGpu', [GpuName, IntToStr(GpuFreeMb)]) + #13#10
   else Report := Msg('RepNoGpu') + #13#10;
@@ -689,6 +703,8 @@ begin
   end
   else
     Report := Report + Fmt('RepRecOnly', [ModelLabel(CpuPick)]) + #13#10;
+  if CpuStretch >= 0 then
+    Report := Report + Fmt('RepStretch', [ModelLabel(CpuStretch), FormatMs(Estimate[1][CpuStretch]), IntToStr(BudgetMs)]) + #13#10;
   if CudaPresent then
     Report := Report + Msg('RepCudaPresent') + #13#10;
   Report := Report + #13#10 + Fmt('RepFootnote', [IntToStr(BudgetMs)]);
@@ -702,6 +718,7 @@ begin
       WizardSelectComponents('!' + ModelComponent(I));
   if (GpuName <> '') and (GpuPick > 0) then WizardSelectComponents(ModelComponent(GpuPick));
   if CpuPick > 0 then WizardSelectComponents(ModelComponent(CpuPick));
+  if CpuStretch > 0 then WizardSelectComponents(ModelComponent(CpuStretch));
 end;
 
 // ---- An existing installation: replace it, or remove it ----
@@ -1317,7 +1334,8 @@ end;
 
 procedure ConfigureModels;
 var
-  Largest, I, Gpu, Cpu, GpuMs, CpuMs, CudaMs: Integer;
+  Largest, I, Gpu, Cpu, GpuMs, CpuMs, CudaMs, StretchMs: Integer;
+  AskKey: String;
   CudaDownloaded: Boolean;
 begin
   if not Benchmarked then RunBenchmark(False); // silent installs skip the wizard pages
@@ -1332,7 +1350,26 @@ begin
   if GpuName <> '' then
   begin
     Gpu := SettleModel(Gpu, 0, GpuMs);
-    Cpu := SettleModel(Cpu, 1, CpuMs);
+    // A borderline bigger model, if it was downloaded: kept when it measures within the budget.
+    StretchMs := -1;
+    if (CpuStretch > Cpu) and Available(CpuStretch) then
+    begin
+      StretchMs := Verify(CpuStretch, 1);
+      if (StretchMs >= 0) and (StretchMs <= BudgetMs) then
+        EventLog('Borderline ' + ModelLabel(CpuStretch) + ' on the processor: ' + IntToStr(StretchMs) + ' ms, within ' + IntToStr(BudgetMs) + ' ms: kept.')
+      else
+      begin
+        EventLog('Borderline ' + ModelLabel(CpuStretch) + ' on the processor: ' + IntToStr(StretchMs) + ' ms, over ' + IntToStr(BudgetMs) + ' ms: the smaller one stays.');
+        StretchMs := -1;
+      end;
+    end;
+    if StretchMs >= 0 then
+    begin
+      Cpu := CpuStretch;
+      CpuMs := StretchMs;
+    end
+    else
+      Cpu := SettleModel(Cpu, 1, CpuMs);
     Summary := Fmt('SumGpu', [GpuName, ModelLabel(Gpu), IntToStr(GpuMs)]) + #13#10 +
       Fmt('SumCpuFallback', [ModelLabel(Cpu), IntToStr(CpuMs)]) + #13#10;
   end
@@ -1374,7 +1411,8 @@ begin
         Summary := Summary + Msg('SumCudaSlower') + #13#10
       else
         Summary := Summary + Msg('SumCudaNotFaster') + #13#10;
-      if CudaDownloaded and (SuppressibleMsgBox(Fmt('AskDeleteCuda', [IntToStr(CudaMs), IntToStr(GpuMs)]), mbConfirmation, MB_YESNO, IDNO) = IDYES) then
+      if (CudaMs * 10 > GpuMs * 11) then AskKey := 'AskDeleteCudaSlower' else AskKey := 'AskDeleteCuda';
+      if CudaDownloaded and (SuppressibleMsgBox(Fmt(AskKey, [IntToStr(CudaMs), IntToStr(GpuMs)]), mbConfirmation, MB_YESNO, IDNO) = IDYES) then
       begin
         DelTree(CudaDir, True, True, True);
         AddedFiles.Delete(AddedFiles.IndexOf('native\cuda'));

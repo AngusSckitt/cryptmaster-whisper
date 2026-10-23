@@ -109,6 +109,9 @@ brazilianportuguese.RepSameCpu=O mesmo modelo também serve para o processador, 
 english.RepRecOnly=Recommended: %1.
 spanish.RepRecOnly=Recomendado: %1.
 brazilianportuguese.RepRecOnly=Recomendado: %1.
+english.RepStretch=%1 is close to the line on the processor (%2): it's ticked too, timed for real after downloading, and used if it comes in under %3 ms.
+spanish.RepStretch=%1 está cerca del límite en el procesador (%2): también viene marcado, se mide de verdad tras descargarlo y se usa si queda por debajo de %3 ms.
+brazilianportuguese.RepStretch=O %1 está perto do limite no processador (%2): também vem marcado, é medido de verdade depois do download e é usado se ficar abaixo de %3 ms.
 english.RepCudaPresent=A CUDA backend is already installed: it will be tested against Vulkan after installing.
 spanish.RepCudaPresent=Ya hay un motor CUDA instalado: se comparará con Vulkan después de instalar.
 brazilianportuguese.RepCudaPresent=Já existe um motor CUDA instalado: ele será testado contra o Vulkan depois da instalação.
@@ -228,3 +231,7 @@ brazilianportuguese.SumCudaDeleted=Os arquivos do CUDA foram apagados.
 english.AskDeleteCuda=CUDA wasn't meaningfully faster than Vulkan on your card (%1 ms against %2 ms per word). Delete the CUDA files it just downloaded (about 1.3 GB)?
 spanish.AskDeleteCuda=CUDA no ha sido apreciablemente más rápido que Vulkan en tu tarjeta (%1 ms frente a %2 ms por palabra). ¿Borrar los archivos de CUDA que se acaban de descargar (unos 1,3 GB)?
 brazilianportuguese.AskDeleteCuda=O CUDA não foi mais rápido de forma significativa que o Vulkan na sua placa (%1 ms contra %2 ms por palavra). Apagar os arquivos do CUDA que acabaram de ser baixados (cerca de 1,3 GB)?
+; CUDA more than 10% slower than Vulkan.
+english.AskDeleteCudaSlower=CUDA was slower than Vulkan on your card (%1 ms against %2 ms per word). Delete the CUDA files it just downloaded (about 1.3 GB)?%n%nMaybe it was slower just because of a hiccup... or maybe you want to hang it as a trophy, idk, you do you.
+spanish.AskDeleteCudaSlower=CUDA ha sido más lento que Vulkan en tu tarjeta (%1 ms frente a %2 ms por palabra). ¿Borrar los archivos de CUDA que se acaban de descargar (unos 1,3 GB)?%n%nA lo mejor fue más lento solo por un tropiezo... o a lo mejor lo quieres colgar como trofeo, qué sé yo, tú verás.
+brazilianportuguese.AskDeleteCudaSlower=O CUDA foi mais lento que o Vulkan na sua placa (%1 ms contra %2 ms por palavra). Apagar os arquivos do CUDA que acabaram de ser baixados (cerca de 1,3 GB)?%n%nTalvez tenha sido mais lento só por um soluço... ou talvez você queira pendurar como troféu, sei lá, você que sabe.
