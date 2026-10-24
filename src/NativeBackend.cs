@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -28,6 +29,8 @@ namespace CryptmasterWhisper
 
         [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern IntPtr LoadLibraryExW(string path, IntPtr file, uint flags);
+        [DllImport("kernel32", SetLastError = true)]
+        private static extern bool FreeLibrary(IntPtr module);
         [DllImport("kernel32", CharSet = CharSet.Ansi)]
         private static extern IntPtr GetProcAddress(IntPtr module, string name);
         // The DLL's own folder (for whisper.dll, ggml*.dll) plus System32, never PATH or the current folder.
@@ -70,17 +73,27 @@ namespace CryptmasterWhisper
             }
             // Its dependencies first, by full path, in import order: Windows can't search a folder whose name has
             // a ';' (a Steam library can be called anything), and a DLL that's already loaded is found by name.
+            var loaded = new List<IntPtr>();
             foreach (string dependency in new[] { "ggml-base.dll", "ggml.dll", "whisper.dll" })
             {
                 string path = Path.Combine(Folder(variant), dependency);
-                if (File.Exists(path)) LoadLibraryExW(path, IntPtr.Zero, LoadSearchDllDirAndDefaults);
+                IntPtr handle = File.Exists(path) ? LoadLibraryExW(path, IntPtr.Zero, LoadSearchDllDirAndDefaults) : IntPtr.Zero;
+                if (handle != IntPtr.Zero) loaded.Add(handle);
+            }
+            // On failure, everything loaded here is unloaded again: the Vulkan and CUDA builds share DLL names, so
+            // a CUDA leftover would otherwise stand in for the Vulkan build's own files in the fallback.
+            void Unload()
+            {
+                for (int i = loaded.Count - 1; i >= 0; i--) FreeLibrary(loaded[i]);
             }
             IntPtr module = LoadLibraryExW(dll, IntPtr.Zero, LoadSearchDllDirAndDefaults);
             if (module == IntPtr.Zero)
             {
                 Plugin.Log.LogWarning($"Whisper: could not load {dll} (error {Marshal.GetLastWin32Error()}; the Microsoft Visual C++ 2015-2022 runtime may be missing).");
+                Unload();
                 return null;
             }
+            loaded.Add(module);
             var backend = new NativeBackend(variant, useGpu);
             T Get<T>(string name) where T : Delegate
             {
@@ -101,6 +114,7 @@ namespace CryptmasterWhisper
             if (version == null || version() != 1 || backend._init == null || backend._transcribe == null)
             {
                 Plugin.Log.LogWarning($"Whisper: {dll} is not a compatible cmwhisper.dll.");
+                Unload();
                 return null;
             }
             _logKeepAlive = (level, text) =>
