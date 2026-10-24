@@ -95,7 +95,11 @@ namespace CryptmasterWhisper
             IntPtr module = LoadLibraryExW(dll, IntPtr.Zero, LoadSearchDllDirAndDefaults);
             if (module == IntPtr.Zero)
             {
-                Plugin.Log.LogWarning($"Whisper: could not load {dll} (error {Marshal.GetLastWin32Error()}; the Microsoft Visual C++ 2015-2022 runtime may be missing).");
+                int error = Marshal.GetLastWin32Error();
+                string why = error == 126 ? "a file it needs is missing: the Microsoft Visual C++ 2015-2022 runtime, or one of that folder's DLLs"
+                    : error == 193 ? "the file is damaged or not a 64-bit DLL; reinstalling the mod replaces it"
+                    : "see the error code";
+                Plugin.Log.LogWarning($"Whisper: could not load {dll} (error {error}: {why}).");
                 Unload();
                 return null;
             }
