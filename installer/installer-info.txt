@@ -1,6 +1,6 @@
 ﻿HOW THIS MOD WAS MADE
-This mod was entirely vibecoded: it was written by an AI (a large language model). So it may contain artifacts of the AI's coding training material, its behaviour, design flaws and biases.
-The AI works under fixed rules that forbid it from generating any imitation of human content other than structured code, text, small pieces of replicated interface and machine translation; the replicated interface and the translations were curated, reviewed and adjusted by the human behind the mod. In practice: no AI-generated voices were made or used at any point in developing this mod.
+This mod was entirely vibecoded: it was written by an "AI" (a large language model - LLM). So it may contain artifacts of the model's coding training material, its behaviour, design flaws and biases.
+The model was explicitly instructed, as a hard rule, not to generate any imitation of human content other than structured code, text, small pieces of replicated interface and machine translation; the replicated interface and the translations were curated, reviewed and adjusted by the human behind the mod. In practice: no AI-generated voices were made or used at any point in developing this mod.
 
 Vanilla Cryptmaster uses Windows Speech Recognition, which stays the default: Whisper is opt-in. Switch it on in the game's Options > Voice, and switch back to Windows Speech Recognition at any time if Whisper misbehaves.
 
