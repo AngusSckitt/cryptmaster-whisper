@@ -23,6 +23,8 @@ namespace CryptmasterWhisper
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate IntPtr VadInitFn(byte[] modelUtf8);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate float VadProbFn(IntPtr vad, float[] samples, int n);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate void VadFn(IntPtr vad);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate void CrashReportFn(byte[] pathUtf8, byte[] headerUtf8);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate void TestAbortFn();
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate int TranscribeFn(IntPtr ctx, float[] samples, int n, byte[] language, byte[] prompt, int audioCtx,
             int threads, int maxTokens, float temperatureInc, byte[] output, int outputSize, out float noSpeech);
@@ -47,6 +49,10 @@ namespace CryptmasterWhisper
         private VadInitFn _vadInit;
         private VadProbFn _vadProb;
         private VadFn _vadReset, _vadFree;
+        private TestAbortFn _testAbort;
+
+        /// <summary>What ggml writes if it ends the game (GPU driver reset, CUDA error...); read on the next launch.</summary>
+        private static string CrashFile => Path.Combine(Path.Combine(Plugin.Folder, "logs"), "native-crash.txt");
 
         /// <summary>The GPU in use ("" when recognition runs on the CPU), and its free memory in MB.</summary>
         internal string GpuName { get; private set; } = "";
@@ -127,6 +133,14 @@ namespace CryptmasterWhisper
                 }
             };
             backend._setLog?.Invoke(_logKeepAlive);
+            // Optional (older shims don't have it): a crash report names the backend that was in use.
+            backend._testAbort = Get<TestAbortFn>("cmw_test_abort");
+            CrashReportFn crashReport = Get<CrashReportFn>("cmw_set_crash_report");
+            if (crashReport != null)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(CrashFile));
+                crashReport(Utf8(CrashFile), Utf8($"backend={variant}{(useGpu ? "" : "-cpu")}\n"));
+            }
             GpuFn gpu = Get<GpuFn>("cmw_gpu");
             if (useGpu && gpu != null)
             {
@@ -161,10 +175,48 @@ namespace CryptmasterWhisper
             if (result != 0)
             {
                 Plugin.Log.LogWarning($"Whisper: whisper.cpp returned error {result}.");
-                return "";
+                return null;
             }
             int length = Array.IndexOf(output, (byte)0);
             return Encoding.UTF8.GetString(output, 0, length < 0 ? output.Length : length);
+        }
+
+        /// <summary>Testing only: ends the game the way a GPU error does (false if this shim can't).</summary>
+        internal bool TestAbort()
+        {
+            if (_testAbort == null)
+            {
+                return false;
+            }
+            _testAbort();
+            return true;
+        }
+
+        /// <summary>
+        /// A crash report left by the last session, if any: logged, kept in logs\ under a dated name, and the
+        /// backend that crashed returned ("cuda", "vulkan", "vulkan-cpu"...); null if there was none.
+        /// </summary>
+        internal static string TakeCrashReport()
+        {
+            try
+            {
+                if (!File.Exists(CrashFile))
+                {
+                    return null;
+                }
+                string[] lines = File.ReadAllLines(CrashFile);
+                string kept = Path.Combine(Path.GetDirectoryName(CrashFile), $"native-crash-{File.GetLastWriteTime(CrashFile):yyyyMMdd-HHmmss}.txt");
+                File.Delete(kept);
+                File.Move(CrashFile, kept);
+                string backend = lines.Length > 0 && lines[0].StartsWith("backend=") ? lines[0].Substring(8).Trim() : "";
+                Plugin.Log.LogWarning($"Whisper: whisper.cpp ended the last session ({backend}): {string.Join(" ", lines, 1, Math.Max(0, lines.Length - 1)).Trim()} (kept in {kept}).");
+                return backend;
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogWarning($"Whisper: could not read the last crash report: {e.Message}");
+                return null;
+            }
         }
 
         private static byte[] Utf8(string s)

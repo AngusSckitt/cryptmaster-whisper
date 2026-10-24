@@ -27,7 +27,14 @@ try {
     $head = git -C $src rev-parse HEAD
     if ($head -ne $Commit) { throw "whisper.cpp source is at $head, not the pinned $Commit ($Version). Delete $Work\src to clone again." }
     if (git -C $src status --porcelain --untracked-files=no) { throw "whisper.cpp source in $Work\src has local changes." }
-    $native = Join-Path (Split-Path -Parent $PSScriptRoot) 'native'
+    # The mod's sources are compiled from the work drive too, so source paths baked into the DLLs (error
+    # messages) read X:\native\..., not this computer's folders.
+    $native = "$drive\native"
+    if (Test-Path $native) { Remove-Item -Recurse -Force $native }
+    Copy-Item (Join-Path (Split-Path -Parent $PSScriptRoot) 'native') $native -Recurse
+    if ((Test-Path "$build\CMakeCache.txt") -and -not (Select-String -Path "$build\CMakeCache.txt" -SimpleMatch "CMAKE_HOME_DIRECTORY:INTERNAL=$($native -replace '\\', '/')" -Quiet)) {
+        Remove-Item -Recurse -Force $build # configured from another source folder
+    }
     cmake -S $native -B $build -DWHISPER_SRC="$src" -G 'Visual Studio 17 2022' -A x64 -DGGML_VULKAN=ON -DGGML_NATIVE=OFF -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON `
         -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
     if ($LASTEXITCODE) { throw 'cmake configure failed' }

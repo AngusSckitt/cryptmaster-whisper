@@ -49,6 +49,7 @@ namespace CryptmasterWhisper
         internal static ConfigEntry<bool> SpeechGate;
         internal static ConfigEntry<bool> EchoGate;
         internal static ConfigEntry<float> EchoMargin, FakeEcho, FakeEchoDelay;
+        internal static ConfigEntry<string> SimulateGpuFailure;
 
         internal static bool UseWhisper => Engine.Value == EngineWhisper;
         internal static bool PushToTalk => Listening.Value == ListenPushToTalk;
@@ -60,6 +61,7 @@ namespace CryptmasterWhisper
         internal const string ListenAutomatic = "Automatic";
         internal const string ListenPushToTalk = "PushToTalk";
         internal const string ListenVoiceActivation = "VoiceActivation";
+        internal const string FailureNone = "None", FailureErrors = "Errors", FailureCrash = "Crash";
 
         private void Awake()
         {
@@ -116,6 +118,9 @@ namespace CryptmasterWhisper
             FakeMicrophone = Config.Bind("Testing", "FakeMicrophone", "", "TESTING ONLY. A playlist file (path|expected word per line) of recordings of real people, fed in place of the microphone. Leave empty to use the microphone.");
             FakeEcho = Config.Bind("Testing", "FakeEcho", 0f, "TESTING ONLY, with FakeMicrophone: mixes the game's own output into the fake microphone at this gain, as speakers would (0 = off).");
             FakeEchoDelay = Config.Bind("Testing", "FakeEchoDelay", 0.12f, "TESTING ONLY: delay of the fake echo, in seconds.");
+            SimulateGpuFailure = Config.Bind("Testing", "SimulateGpuFailure", FailureNone,
+                new ConfigDescription("TESTING ONLY. Makes recognition on the GPU fail, to test the fallbacks. Errors: every GPU recognition fails (after 3 in a row the session moves to the CPU). Crash: the first GPU recognition ends the game the way a GPU driver reset does (the next launch skips that backend once). Set it back to None afterwards.",
+                    new AcceptableValueList<string>(FailureNone, FailureErrors, FailureCrash)));
             CryptmasterWhisper.FakeMicrophone.Load();
             Texts.Load(Path.Combine(Folder, "textos"));
             new Harmony(PluginGuid).PatchAll(typeof(Plugin).Assembly);

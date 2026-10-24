@@ -118,6 +118,16 @@ namespace CryptmasterWhisper
             {
                 choice = Plugin.BackendCuda;
             }
+            // whisper.cpp ended the last session (a GPU driver reset, a CUDA error...): that backend is skipped for
+            // this session only, one step down (CUDA -> Vulkan -> CPU -> the game's library), so a broken GPU
+            // can't end every launch. The chosen setting itself stays.
+            string crashed = NativeBackend.TakeCrashReport();
+            string planned = choice == Plugin.BackendCuda ? "cuda" : choice == Plugin.BackendCpu ? "vulkan-cpu" : choice == Plugin.BackendGame ? null : "vulkan";
+            if (crashed != null && (crashed == planned || (crashed == "cuda-cpu" && planned == "vulkan-cpu")))
+            {
+                choice = planned == "cuda" ? Plugin.BackendVulkan : planned == "vulkan" ? Plugin.BackendCpu : Plugin.BackendGame;
+                Plugin.Log.LogWarning($"Whisper: {crashed} ended the last session, so this session uses {choice} instead (once; Performance.Backend is unchanged).");
+            }
             _native = choice switch
             {
                 Plugin.BackendCuda => NativeBackend.TryLoad("cuda", true) ?? NativeBackend.TryLoad("vulkan", true),
@@ -157,18 +167,41 @@ namespace CryptmasterWhisper
                     return true;
                 }
                 // Same build (or the game's library): reload with the new GPU/CPU choice.
-                foreach (IntPtr ctx in NativeModels.Values)
-                {
-                    if (ctx != IntPtr.Zero)
-                    {
-                        _native?.FreeModel(ctx);
-                    }
-                }
-                NativeModels.Clear();
+                FreeNativeModels();
                 _native = null;
                 _backendChosen = false;
+                _nativeErrors = 0;
                 return false;
             }
+        }
+
+        private static void FreeNativeModels()
+        {
+            foreach (IntPtr ctx in NativeModels.Values)
+            {
+                if (ctx != IntPtr.Zero)
+                {
+                    _native?.FreeModel(ctx);
+                }
+            }
+            NativeModels.Clear();
+        }
+
+        private static int _nativeErrors;
+        private const int ErrorsBeforeCpu = 3;
+
+        /// <summary>
+        /// After several whisper.cpp errors in a row (a GPU in trouble), the rest of the session runs on the CPU:
+        /// the same build if it was on the GPU (no DLLs to swap; both builds carry the CPU code), else the game's
+        /// own library. Call under Lock.
+        /// </summary>
+        private static void DropToCpu()
+        {
+            string from = BackendName;
+            FreeNativeModels();
+            _native = _native != null && _native.UseGpu ? NativeBackend.TryLoad(_native.Variant, false) : null;
+            _nativeErrors = 0;
+            Plugin.Log.LogWarning($"Whisper: {ErrorsBeforeCpu} errors in a row on {from}; this session now uses {BackendName} (back to normal after restarting the game).");
         }
 
         internal static string BackendName => _native == null ? "game" : _native.Variant + (_native.UseGpu ? "" : "-cpu");
@@ -343,7 +376,34 @@ namespace CryptmasterWhisper
                 {
                     float[] audio16k = To16k(samples, frequency);
                     var watch = Stopwatch.StartNew();
-                    string text = _native.Transcribe(ctx, audio16k, language, prompt, audioCtx, threads, MaxTokens, temperatureInc, out float noSpeech);
+                    string text;
+                    float noSpeech = 0f;
+                    string simulate = _native.UseGpu ? Plugin.SimulateGpuFailure.Value : Plugin.FailureNone;
+                    if (simulate == Plugin.FailureCrash && _native.TestAbort())
+                    {
+                        text = null; // not reached: the game has ended
+                    }
+                    else if (simulate == Plugin.FailureErrors)
+                    {
+                        Plugin.Log.LogWarning("Whisper: TEST: Testing.SimulateGpuFailure = Errors, this GPU recognition counts as failed.");
+                        text = null;
+                    }
+                    else
+                    {
+                        text = _native.Transcribe(ctx, audio16k, language, prompt, audioCtx, threads, MaxTokens, temperatureInc, out noSpeech);
+                    }
+                    if (text == null)
+                    {
+                        if (++_nativeErrors >= ErrorsBeforeCpu)
+                        {
+                            DropToCpu();
+                        }
+                        text = "";
+                    }
+                    else
+                    {
+                        _nativeErrors = 0;
+                    }
                     return new Result { Text = text, InferenceMs = watch.ElapsedMilliseconds, AudioSeconds = seconds, IsFinal = isFinal, NoSpeech = noSpeech };
                 }
             }

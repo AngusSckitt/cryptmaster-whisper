@@ -16,7 +16,7 @@ $plugin = Join-Path $stage 'plugin'
 New-Item -ItemType Directory -Force "$plugin\textos", "$plugin\native\vulkan", "$plugin\models", "$plugin\vad", "$stage\bepinex" | Out-Null
 
 # The mod (built without deploying to the game).
-dotnet build "$root\Cryptmaster - Whisper.csproj" -c Release --nologo -v q -p:Version=$Version -p:NativeVulkanDir=$NativeDir -p:DeployToGame=false | Out-Null
+dotnet build "$root\Cryptmaster - Whisper.csproj" -c Release --nologo -v q -p:Version=$Version -p:NativeVulkanDir=$NativeDir -p:DeployToGame=false -p:ContinuousIntegrationBuild=true | Out-Null # paths in the DLL read /_/, not this PC's
 if ($LASTEXITCODE) { throw 'dotnet build failed' }
 Copy-Item "$root\bin\Release\netstandard2.1\CryptmasterWhisper.dll" $plugin
 Copy-Item "$root\textos\*.txt" "$plugin\textos"

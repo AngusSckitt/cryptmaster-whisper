@@ -73,6 +73,37 @@ CMW_API void cmw_set_log(cmw_log_fn fn) {
 
 CMW_API const char * cmw_system_info() { return whisper_print_system_info(); }
 
+// ---- Crash report ----
+// ggml ends the whole process (abort) on errors it can't recover from: a GPU driver reset, a CUDA error.
+// Nothing here can stop that, but its message can be written down first, for the mod's next launch.
+
+static std::wstring g_crash_file;
+static std::string g_crash_header;
+
+static void write_crash_report(const char * message) {
+    if (g_crash_file.empty()) return;
+    HANDLE f = CreateFileW(g_crash_file.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (f == INVALID_HANDLE_VALUE) return;
+    DWORD written = 0;
+    WriteFile(f, g_crash_header.data(), (DWORD) g_crash_header.size(), &written, nullptr);
+    if (message) WriteFile(f, message, (DWORD) strlen(message), &written, nullptr);
+    FlushFileBuffers(f);
+    CloseHandle(f);
+}
+
+// path and header are UTF-8; the header goes first (e.g. "backend=cuda\n"), then ggml's message.
+CMW_API void cmw_set_crash_report(const char * path, const char * header) {
+    int n = path ? MultiByteToWideChar(CP_UTF8, 0, path, -1, nullptr, 0) : 0;
+    std::wstring w(n > 0 ? n - 1 : 0, 0);
+    if (n > 1) MultiByteToWideChar(CP_UTF8, 0, path, -1, &w[0], n);
+    g_crash_file = w;
+    g_crash_header = header ? header : "";
+    ggml_set_abort_callback(write_crash_report);
+}
+
+// Testing only (Testing.SimulateGpuFailure = Crash): ends the process the way a GPU error does.
+CMW_API void cmw_test_abort() { GGML_ABORT("test abort (Testing.SimulateGpuFailure = Crash)"); }
+
 // Loads a model; use_gpu = 0 forces the CPU. Returns null on failure.
 CMW_API void * cmw_init(const char * model_path, int use_gpu) {
     load_backends();
