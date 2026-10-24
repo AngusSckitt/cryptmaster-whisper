@@ -1270,6 +1270,17 @@ begin
     '', SW_HIDE, ewWaitUntilTerminated, Code);
 end;
 
+// The VC++ runtime can't be pinned by hash (Microsoft updates that URL), so its Authenticode signature is
+// checked instead: valid, trusted chain, signed by Microsoft Corporation.
+function MicrosoftSigned(Path: String): Boolean;
+var
+  Code: Integer;
+begin
+  Result := Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -Command "$s = Get-AuthenticodeSignature -LiteralPath ' + PsQuote(Path) +
+    '; if ($s.Status -eq ''Valid'' -and $s.SignerCertificate.Subject -match ''^CN=Microsoft Corporation,'') { exit 0 } else { exit 1 }"',
+    '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
+end;
+
 // Writes a setting, unless the player already had one there and chose to keep their settings.
 procedure SetConfig(Section, Key, Value: String);
 begin
@@ -1556,9 +1567,14 @@ begin
     EventLog('BepInEx was already installed: left as it is.');
   if FileExists(ExpandConstant('{tmp}\vc_redist.x64.exe')) then
   begin
-    EventLog('Installing the Microsoft Visual C++ runtime...');
-    Exec(ExpandConstant('{tmp}\vc_redist.x64.exe'), '/install /quiet /norestart', '', SW_HIDE, ewWaitUntilTerminated, Code);
-    EventLog('Visual C++ runtime installer finished (exit code ' + IntToStr(Code) + ').');
+    if MicrosoftSigned(ExpandConstant('{tmp}\vc_redist.x64.exe')) then
+    begin
+      EventLog('Installing the Microsoft Visual C++ runtime (signature checked: Microsoft Corporation)...');
+      Exec(ExpandConstant('{tmp}\vc_redist.x64.exe'), '/install /quiet /norestart', '', SW_HIDE, ewWaitUntilTerminated, Code);
+      EventLog('Visual C++ runtime installer finished (exit code ' + IntToStr(Code) + ').');
+    end
+    else
+      EventLog('The Visual C++ runtime download is NOT validly signed by Microsoft: not run. Install it from https://aka.ms/vs/17/release/vc_redist.x64.exe if the mod doesn''t load.');
   end;
   Models := PluginDir + '\models';
   ForceDirectories(Models);
