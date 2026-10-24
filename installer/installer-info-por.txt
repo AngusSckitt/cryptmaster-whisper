@@ -1,5 +1,5 @@
 ﻿IMPORTANTE SOBRE O PORTUGUÊS
-O Whisper reconhece português, mas o próprio Cryptmaster não tem suporte a português: com o jogo em inglês ou espanhol, inclusos no original, o Whisper vai esperar comandos em inglês ou espanhol, porque segue o idioma do jogo. Para a experiência completa em português (textos, comandos digitados e reconhecimento de voz), instale também o outro mod, "Cryptmaster - Localização PT-BR", também "criado" por AngusSckitt, e escolha Português em Opções > Jogo > Idioma.
+O Whisper reconhece português, mas o próprio Cryptmaster não tem suporte a português: com o jogo em inglês ou espanhol, inclusos no original, o Whisper vai esperar comandos em inglês ou espanhol, porque segue o idioma do jogo. Para a experiência completa em português (textos, comandos digitados e reconhecimento de voz), está a caminho o outro mod, "Cryptmaster - Localização PT-BR", também "criado" por AngusSckitt: quando sair, é só instalá-lo e escolher Português em Opções > Jogo > Idioma.
 
 COMO ESTE MOD FOI FEITO
 Este mod foi inteiramente "vibecodado": quem o escreveu foi uma "IA" (um modelo de linguagem grande - LLM). Por isso, ele pode conter artefatos do material de treinamento de programação do modelo, do comportamento dele, de falhas de design e de vieses.

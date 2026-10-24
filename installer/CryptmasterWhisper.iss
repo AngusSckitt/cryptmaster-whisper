@@ -17,7 +17,7 @@
 ; replace them, and the uninstaller removes only what this installer added.
 
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "0.9.0"
 #endif
 #define Stage "..\dist\stage"
 #define HfRev "5359861c739e955e79d9a303bcbc70fb988958b1"
@@ -960,6 +960,8 @@ end;
 
 const
   PtRepo = 'AngusSckitt/cryptmaster-localizacao-ptbr';
+  // Off until that mod has a public release with an installer (the download would fail otherwise).
+  OfferPtMod = False;
 
 var
   PtModBox: TNewCheckBox;
@@ -978,7 +980,7 @@ end;
 procedure ShowPtModOffer;
 begin
   // Interactive installs only: a silent install never downloads or launches anything unasked.
-  if WizardSilent or (ActiveLanguage <> 'brazilianportuguese') or PtModInstalled or (PtModBox <> nil) then Exit;
+  if not OfferPtMod or WizardSilent or (ActiveLanguage <> 'brazilianportuguese') or PtModInstalled or (PtModBox <> nil) then Exit;
   PtModBox := TNewCheckBox.Create(WizardForm);
   PtModBox.Parent := WizardForm.FinishedPage;
   PtModBox.Left := WizardForm.FinishedLabel.Left;

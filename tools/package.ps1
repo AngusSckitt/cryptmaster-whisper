@@ -2,9 +2,9 @@
 #   CryptmasterWhisper-Setup-<version>.exe  installer (mod, Vulkan whisper.cpp, BepInEx; optional downloads)
 #   CryptmasterWhisper-<version>.zip        manual install: unzip into the game folder (BepInEx 5 needed)
 # Only redistributable files go in (docs\LICENSING.md). Run tools\build-whisper-vulkan.ps1 first.
-# Usage: powershell -File tools\package.ps1 [-Version 0.1.0] [-NativeDir <build-whisper-vulkan output>]
+# Usage: powershell -File tools\package.ps1 [-Version 0.9.0] [-NativeDir <build-whisper-vulkan output>]
 # Keep this script ASCII-only (Windows PowerShell 5.1 reads BOM-less scripts as ANSI).
-param([string]$Version = '0.1.0', [string]$NativeDir = "$env:TEMP\cryptmaster-whisper-build\out")
+param([string]$Version = '0.9.0', [string]$NativeDir = "$env:TEMP\cryptmaster-whisper-build\out")
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $root = Split-Path -Parent $PSScriptRoot

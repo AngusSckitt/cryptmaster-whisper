@@ -17,7 +17,7 @@ namespace CryptmasterWhisper
     {
         public const string PluginGuid = "cryptmaster.whisper";
         public const string PluginName = "Cryptmaster Whisper";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.9.0";
 
         internal static ManualLogSource Log;
         internal static string Folder;
