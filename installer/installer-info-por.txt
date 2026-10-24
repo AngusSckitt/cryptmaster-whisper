@@ -5,7 +5,7 @@ COMO ESTE MOD FOI FEITO
 Este mod foi inteiramente "vibecodado": quem o escreveu foi uma "IA" (um modelo de linguagem grande - LLM). Por isso, ele pode conter artefatos do material de treinamento de programação do modelo, do comportamento dele, de falhas de design e de vieses.
 O modelo foi instruído explicitamente, como regra rígida, a não gerar nenhuma imitação de conteúdo humano além de código estruturado, texto, pequenos trechos de interface replicada e tradução automática; a interface replicada e as traduções foram selecionadas, revisadas e ajustadas pelo humano por trás do mod, que também definiu o rumo e as regras, tomou as decisões de design e testou no jogo.
 **Na prática: nenhuma voz gerada por IA foi feita ou usada em nenhum momento do desenvolvimento deste mod.**
-Os testes de precisão usaram gravações de pessoas reais que consentiram: o conjunto de dados Speech Commands do Google (CC BY 4.0).
+Os testes de precisão usaram gravações de pessoas reais que consentiram: o conjunto de dados Speech Commands do Google (CC BY 4.0). Agradecimento especial ao cara que mia nas gravações de ruído de fundo, que tornou inesquecíveis os testes mais difíceis.
 Não há como saber se o modelo reproduziu algum trecho de código do material de treinamento. Se você reconhecer aqui um código que deveria ser creditado ou que conflita com a licença GPL-3, ou encontrar qualquer outro problema, abra uma issue: https://github.com/AngusSckitt/cryptmaster-whisper/issues
 
 O Cryptmaster original usa o Reconhecimento de Fala do Windows, que continua sendo o padrão: o Whisper é opcional. Ative-o em Opções > Voz, dentro do jogo, e volte para o Reconhecimento de Fala do Windows quando quiser, se o Whisper se comportar mal.
