@@ -23,7 +23,7 @@ WHAT THIS INSTALLS
 - BepInEx 5 (the mod loader), if it isn't installed yet.
 - whisper.cpp built with Vulkan (works on AMD, Intel and NVIDIA graphics cards, and on the processor without one).
 - Optionally, larger Whisper models, downloaded from their official source.
-- Optionally, on PCs with an NVIDIA graphics card, a CUDA backend, downloaded from its official source.
+- Optionally, on PCs with an NVIDIA graphics card, CUDA, downloaded from its official source.
 - The Microsoft Visual C++ runtime, downloaded from Microsoft, only if it's missing.
 
 Downloads are checked against fixed SHA-256 hashes. Anything already in the mod's folder is left alone unless you choose otherwise. Uninstalling removes only what this installer added; BepInEx and your settings stay, since other mods may use them.

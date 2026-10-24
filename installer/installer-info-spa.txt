@@ -23,7 +23,7 @@ QUÉ SE INSTALA
 - BepInEx 5 (el cargador de mods), si aún no está instalado.
 - whisper.cpp compilado con Vulkan (funciona con tarjetas gráficas AMD, Intel y NVIDIA, y en el procesador si no hay ninguna).
 - Opcionalmente, modelos de Whisper más grandes, descargados de su fuente oficial.
-- Opcionalmente, en ordenadores con tarjeta gráfica NVIDIA, un motor CUDA, descargado de su fuente oficial.
+- Opcionalmente, en ordenadores con tarjeta gráfica NVIDIA, CUDA, descargado de su fuente oficial.
 - El entorno de ejecución de Microsoft Visual C++, descargado de Microsoft, solo si falta.
 
 Las descargas se comprueban con hashes SHA-256 fijos. Todo lo que ya esté en la carpeta del mod se deja como está, salvo que elijas otra cosa. Al desinstalar solo se elimina lo que añadió este instalador; BepInEx y tus ajustes se quedan, porque otros mods pueden usarlos.
