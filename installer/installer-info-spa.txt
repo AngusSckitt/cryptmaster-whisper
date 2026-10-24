@@ -1,4 +1,8 @@
-﻿Cryptmaster original usa el Reconocimiento de voz de Windows, que sigue siendo la opción predeterminada: Whisper es opcional. Actívalo en Opciones > Voz dentro del juego, y vuelve al Reconocimiento de voz de Windows cuando quieras si Whisper no se porta bien.
+﻿CÓMO SE HIZO ESTE MOD
+Este mod se hizo por completo con "vibecoding": lo escribió una IA (un modelo de lenguaje grande). Por eso puede contener artefactos del material de entrenamiento de programación de la IA, de su comportamiento, de fallos de diseño y de sesgos.
+La IA trabaja con reglas fijas que le prohíben generar cualquier imitación de contenido humano aparte de código estructurado, texto, pequeñas piezas de interfaz replicada y traducción automática; la interfaz replicada y las traducciones fueron seleccionadas, revisadas y ajustadas por la persona detrás del mod. En la práctica: no se creó ni se usó ninguna voz generada por IA en ningún momento del desarrollo de este mod.
+
+Cryptmaster original usa el Reconocimiento de voz de Windows, que sigue siendo la opción predeterminada: Whisper es opcional. Actívalo en Opciones > Voz dentro del juego, y vuelve al Reconocimiento de voz de Windows cuando quieras si Whisper no se porta bien.
 
 QUÉ ES WHISPER
 Whisper es un modelo de reconocimiento de voz publicado como código abierto por OpenAI. Aquí funciona por completo en tu ordenador: sin servicio de voz en línea, sin cuenta y sin enviar nada a ningún sitio. El mod lo ejecuta con whisper.cpp, un motor de código abierto que usa tu tarjeta gráfica (de cualquier marca, mediante Vulkan) o tu procesador.
