@@ -29,7 +29,7 @@ la interfaz replicada y las traducciones fueron seleccionadas, revisadas y ajust
 
 ### En la práctica: no se creó ni se usó ninguna voz generada por IA en ningún momento del desarrollo de este mod.
 
-Las pruebas de precisión usaron grabaciones de personas reales que dieron su consentimiento: el conjunto de datos Speech Commands de Google (CC BY 4.0). Un saludo al Tipo que Maúlla. Quien sabe, sabe.
+Las pruebas de precisión usaron grabaciones de personas reales que dieron su consentimiento: el conjunto de datos Speech Commands de Google (CC BY 4.0). Un saludo al maullador. Si sabes, sabes.
 
 No hay forma de saber si el modelo reprodujo algún fragmento de código de su material de entrenamiento. Si reconoces aquí código que debería tener crédito o que entra en conflicto con la licencia GPL-3, o encuentras cualquier otro problema, abre una incidencia (issue): https://github.com/AngusSckitt/cryptmaster-whisper/issues
 
@@ -45,7 +45,7 @@ replicada e as traduções foram selecionadas, revisadas e ajustadas pelo humano
 
 ### Na prática: nenhuma voz gerada por IA foi feita ou usada em nenhum momento do desenvolvimento deste mod.
 
-Os testes de precisão usaram gravações de pessoas reais que consentiram: o conjunto de dados Speech Commands do Google (CC BY 4.0). Salve pro Cara que Mia. Quem sabe, sabe.
+Os testes de precisão usaram gravações de pessoas reais que consentiram: o conjunto de dados Speech Commands do Google (CC BY 4.0). Um salve pro miador. Quem sabe, sabe.
 
 Não há como saber se o modelo reproduziu algum trecho de código do material de treinamento. Se você reconhecer aqui um código que deveria ser creditado ou que conflita com a licença GPL-3, ou encontrar qualquer outro problema, abra uma issue: https://github.com/AngusSckitt/cryptmaster-whisper/issues
 
