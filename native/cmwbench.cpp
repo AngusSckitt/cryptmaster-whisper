@@ -1,5 +1,5 @@
 // cmwbench: times a Whisper model on this PC, for the installer's model recommendation.
-// Usage: cmwbench <model.bin> [--cpu] [--ctx 256] [--runs 3]
+// Usage: cmwbench <model.bin> [--cpu] [--ctx 256] [--runs 3] [--out result.txt]
 // Prints key=value lines: device, vram_free_mb, load_ms, median_ms (2 s of quiet noise, greedy, one segment).
 // Part of Cryptmaster Whisper (GPL-3.0).
 #define NOMINMAX
@@ -15,22 +15,38 @@
 
 static void quiet(enum ggml_log_level, const char *, void *) {}
 
-static std::string exe_folder() {
-    char path[MAX_PATH * 4] = {};
-    GetModuleFileNameA(nullptr, path, sizeof(path));
-    std::string s(path);
-    return s.substr(0, s.find_last_of("\\/"));
+static std::string to_utf8(const std::wstring & w) {
+    if (w.empty()) return std::string();
+    int n = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int) w.size(), nullptr, 0, nullptr, nullptr);
+    std::string s(n, 0);
+    WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int) w.size(), &s[0], n, nullptr, nullptr);
+    return s;
 }
 
-int main(int argc, char ** argv) {
-    if (argc < 2) { fprintf(stderr, "usage: cmwbench <model> [--cpu] [--ctx N] [--runs N]\n"); return 2; }
-    const char * model = argv[1];
+// UTF-8, which is what ggml and whisper.cpp expect for paths (wide arguments: folders with accents work).
+static std::string exe_folder() {
+    std::wstring s(32768, 0);
+    s.resize(GetModuleFileNameW(nullptr, &s[0], (DWORD) s.size()));
+    return to_utf8(s.substr(0, s.find_last_of(L"\\/")));
+}
+
+int wmain(int argc, wchar_t ** argv) {
+    if (argc < 2) { fprintf(stderr, "usage: cmwbench <model> [--cpu] [--ctx N] [--runs N] [--out file]\n"); return 2; }
+    std::string model_path = to_utf8(argv[1]);
+    const char * model = model_path.c_str();
+    const wchar_t * out = nullptr;
     bool cpu = false; int ctx = 256, runs = 3;
     for (int i = 2; i < argc; i++) {
-        if (!strcmp(argv[i], "--cpu")) cpu = true;
-        else if (!strcmp(argv[i], "--ctx") && i + 1 < argc) ctx = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "--runs") && i + 1 < argc) runs = atoi(argv[++i]);
+        if (!wcscmp(argv[i], L"--cpu")) cpu = true;
+        else if (!wcscmp(argv[i], L"--ctx") && i + 1 < argc) ctx = _wtoi(argv[++i]);
+        else if (!wcscmp(argv[i], L"--runs") && i + 1 < argc) runs = _wtoi(argv[++i]);
+        else if (!wcscmp(argv[i], L"--out") && i + 1 < argc) out = argv[++i];
     }
+    runs = std::max(1, runs); // the medians below need at least one run
+    ctx = std::max(0, ctx);   // 0 = whisper.cpp's full window
+    // --out: the result goes to a file instead of the console (the installer runs this without admin rights,
+    // where it can't capture the output).
+    if (out && !_wfreopen(out, L"w", stdout)) return 3;
     whisper_log_set(quiet, nullptr);
     ggml_backend_load_all_from_path(exe_folder().c_str());
 

@@ -50,7 +50,10 @@ static class Program
 
     static void NativeBench(string folder, bool cpu, string[] models, float[] audio)
     {
-        IntPtr m = LoadLibraryExW(Path.Combine(folder, "cmwhisper.dll"), IntPtr.Zero, 0x8);
+        // As the mod: dependencies first by full path (folder names with ';'), then the shim; DLL folder + System32.
+        foreach (string d in new[] { "ggml-base.dll", "ggml.dll", "whisper.dll" })
+            if (File.Exists(Path.Combine(folder, d))) LoadLibraryExW(Path.Combine(folder, d), IntPtr.Zero, 0x100 | 0x1000);
+        IntPtr m = LoadLibraryExW(Path.Combine(folder, "cmwhisper.dll"), IntPtr.Zero, 0x100 | 0x1000);
         if (m == IntPtr.Zero) { Console.WriteLine($"cannot load cmwhisper.dll from {folder} (error {Marshal.GetLastWin32Error()})"); return; }
         T F<T>(string n) => Marshal.GetDelegateForFunctionPointer<T>(GetProcAddress(m, n));
         F<CmwSetLog>("cmw_set_log")(_cmwLog);

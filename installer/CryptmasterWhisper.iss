@@ -17,7 +17,7 @@
 ; replace them, and the uninstaller removes only what this installer added.
 
 #ifndef AppVersion
-  #define AppVersion "0.9.0"
+  #define AppVersion "0.9.1"
 #endif
 #define Stage "..\dist\stage"
 #define HfRev "5359861c739e955e79d9a303bcbc70fb988958b1"
@@ -566,16 +566,29 @@ begin
     end;
 end;
 
-// Runs a cmwbench.exe (Exe) on a model; returns the output lines.
-function RunBenchExe(Exe, Model, Args: String; var Lines: TArrayOfString): Boolean;
+// Runs a cmwbench.exe (Exe) on a model; returns the output lines. AsPlayer: without admin rights, for a copy in
+// the game's folder, which the player's programs can write to (a DLL planted there gains nothing that way).
+function RunBenchExe(Exe, Model, Args: String; AsPlayer: Boolean; var Lines: TArrayOfString): Boolean;
 var
   Code: Integer;
   OutFile: String;
+  Output: TExecOutput;
 begin
-  OutFile := ExpandConstant('{tmp}\bench-result.txt');
-  DeleteFile(OutFile);
-  Result := Exec(ExpandConstant('{cmd}'), '/C ""' + Exe + '" "' + Model + '" ' + Args + ' > "' + OutFile + '""',
-    ExtractFileDir(Exe), SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0) and LoadStringsFromFile(OutFile, Lines);
+  if AsPlayer then
+  begin
+    // A process without admin rights can't write to {tmp}, so its result goes next to it.
+    OutFile := ExtractFileDir(Exe) + '\cmwbench-installer-result.txt';
+    DeleteFile(OutFile);
+    Result := ExecAsOriginalUser(Exe, '"' + Model + '" ' + Args + ' --out "' + OutFile + '"', ExtractFileDir(Exe),
+      SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0) and LoadStringsFromFile(OutFile, Lines);
+    DeleteFile(OutFile);
+  end
+  else
+  begin
+    Result := ExecAndCaptureOutput(Exe, '"' + Model + '" ' + Args, ExtractFileDir(Exe), SW_HIDE, ewWaitUntilTerminated, Code, Output)
+      and (Code = 0);
+    if Result then Lines := Output.StdOut;
+  end;
   if Result then EventLog('cmwbench (' + ExtractFileDir(Exe) + ') ' + Args + ': ' + BenchValue(Lines, 'backend') + ' ' + BenchValue(Lines, 'device') +
     ', median ' + BenchValue(Lines, 'median_ms') + ' ms, encode ' + BenchValue(Lines, 'encode_ms') + ' ms')
   else EventLog('cmwbench failed: ' + Exe + ' ' + Args);
@@ -583,7 +596,7 @@ end;
 
 function RunBench(Model, Args: String; var Lines: TArrayOfString): Boolean;
 begin
-  Result := RunBenchExe(ExpandConstant('{tmp}\bench\cmwbench.exe'), Model, Args, Lines);
+  Result := RunBenchExe(ExpandConstant('{tmp}\bench\cmwbench.exe'), Model, Args, False, Lines);
 end;
 
 // Estimates every model on one device (0 GPU, 1 CPU) from tiny timed with a short and a full window.
@@ -733,16 +746,24 @@ var
   ExistingDir, ExistingVersion, ExistingUninstaller: String;
   CloseQuietly: Boolean;
 
+// Only the entry this install mode writes: an admin install never trusts the per-user one, which any program
+// the player runs can write (its uninstaller would then be started with admin rights).
 function ReadUninstallValue(Name: String; var Value: String): Boolean;
 begin
-  Result := RegQueryStringValue(HKCU, UninstallKey, Name, Value) or RegQueryStringValue(HKLM, UninstallKey, Name, Value);
+  if IsAdminInstallMode then Result := RegQueryStringValue(HKLM, UninstallKey, Name, Value)
+  else Result := RegQueryStringValue(HKCU, UninstallKey, Name, Value);
 end;
 
+// Inno's own uninstaller (unins000.exe...), nothing else.
 function RegisteredInstallExists: Boolean;
 var
   Uninstaller: String;
 begin
-  Result := ReadUninstallValue('UninstallString', Uninstaller) and FileExists(RemoveQuotes(Uninstaller));
+  Result := ReadUninstallValue('UninstallString', Uninstaller);
+  if not Result then Exit;
+  Uninstaller := RemoveQuotes(Uninstaller);
+  Result := FileExists(Uninstaller) and (CompareText(Copy(ExtractFileName(Uninstaller), 1, 5), 'unins') = 0)
+    and (CompareText(ExtractFileExt(Uninstaller), '.exe') = 0);
 end;
 
 procedure DetectExisting;
@@ -1227,12 +1248,25 @@ end;
 
 // ---- Installing ----
 
+// A path as a PowerShell single-quoted string, where only quotes need doubling. PowerShell also takes the
+// typographic single quotes as quotes (a folder can be called "Angus’s games"); Windows paths can't hold ".
+function PsQuote(S: String): String;
+begin
+  Result := S;
+  StringChangeEx(Result, '''', '''''', True);
+  StringChangeEx(Result, #$2018, #$2018#$2018, True);
+  StringChangeEx(Result, #$2019, #$2019#$2019, True);
+  StringChangeEx(Result, #$201A, #$201A#$201A, True);
+  StringChangeEx(Result, #$201B, #$201B#$201B, True);
+  Result := '''' + Result + '''';
+end;
+
 procedure Unzip(Zip, Dest: String);
 var
   Code: Integer;
 begin
   ForceDirectories(Dest);
-  Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath ''' + Zip + ''' -DestinationPath ''' + Dest + ''' -Force"',
+  Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath ' + PsQuote(Zip) + ' -DestinationPath ' + PsQuote(Dest) + ' -Force"',
     '', SW_HIDE, ewWaitUntilTerminated, Code);
 end;
 
@@ -1309,7 +1343,8 @@ begin
   if I = 0 then Result := 'ggml-model-whisper-tiny.en-q8_0.bin' else Result := ModelFile(I);
 end;
 
-// Times the GPU model on the CUDA build (ours runs from its folder, so its DLLs are found); -1 if it fails.
+// Times the GPU model on the CUDA build (ours runs from its folder, so its DLLs are found; without admin
+// rights, since that folder may hold DLLs this installer never checked); -1 if it fails.
 function TimeCuda(Model: Integer): Integer;
 var
   Lines: TArrayOfString;
@@ -1320,7 +1355,7 @@ begin
   Exe := CudaDir + '\cmwbench-installer-test.exe';
   if not FileCopy(ExpandConstant('{tmp}\bench\cmwbench.exe'), Exe, False) then Exit;
   try
-    if RunBenchExe(Exe, ModelPath(Model), '--ctx 256 --runs 3', Lines) and (Pos('CUDA', BenchValue(Lines, 'backend')) = 1) then
+    if RunBenchExe(Exe, ModelPath(Model), '--ctx 256 --runs 3', True, Lines) and (Pos('CUDA', BenchValue(Lines, 'backend')) = 1) then
       Result := StrToIntDef(BenchValue(Lines, 'median_ms'), -1);
   finally
     DeleteFile(Exe);
@@ -1579,6 +1614,19 @@ begin
   AppendLogLine(UninstallLogFile, Line);
 end;
 
+// Only what an install can have listed: native\cuda, or a model file directly in models\. The list sits in a
+// folder the player's programs can write to, so anything else in it (..\, drive letters) is ignored.
+function IsAddedItem(Item: String): Boolean;
+var
+  Name: String;
+begin
+  Result := CompareText(Item, 'native\cuda') = 0;
+  if Result or (CompareText(Copy(Item, 1, 7), 'models\') <> 0) then Exit;
+  Name := Copy(Item, 8, Length(Item));
+  Result := (Name <> '') and (Pos('\', Name) = 0) and (Pos('/', Name) = 0) and (Pos(':', Name) = 0)
+    and (Pos('..', Name) = 0) and (CompareText(ExtractFileExt(Name), '.bin') = 0);
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Lines: TArrayOfString;
@@ -1597,8 +1645,12 @@ begin
     for I := 0 to GetArrayLength(Lines) - 1 do
     begin
       Item := Trim(Lines[I]);
-      // Logs always survive an uninstall (an older install may have listed them).
-      if (Item = '') or (CompareText(Item, 'logs') = 0) then Continue;
+      // Logs always survive an uninstall (an older install may have listed them): not an added item either.
+      if not IsAddedItem(Item) then
+      begin
+        if (Item <> '') and (CompareText(Item, 'logs') <> 0) then UninstallLog('Ignored (not something this installer adds): ' + Item);
+        Continue;
+      end;
       Path := Plugin + '\' + Item;
       if DirExists(Path) then
       begin

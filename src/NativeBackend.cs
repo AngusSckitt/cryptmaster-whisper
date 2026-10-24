@@ -30,7 +30,9 @@ namespace CryptmasterWhisper
         private static extern IntPtr LoadLibraryExW(string path, IntPtr file, uint flags);
         [DllImport("kernel32", CharSet = CharSet.Ansi)]
         private static extern IntPtr GetProcAddress(IntPtr module, string name);
-        private const uint LoadWithAlteredSearchPath = 0x8;
+        // The DLL's own folder (for whisper.dll, ggml*.dll) plus System32, never PATH or the current folder.
+        // Unlike LOAD_WITH_ALTERED_SEARCH_PATH, a ';' in the game's folder name doesn't break it.
+        private const uint LoadSearchDllDirAndDefaults = 0x100 | 0x1000;
 
         internal string Variant { get; }
         internal bool UseGpu { get; }
@@ -66,7 +68,14 @@ namespace CryptmasterWhisper
             {
                 return null;
             }
-            IntPtr module = LoadLibraryExW(dll, IntPtr.Zero, LoadWithAlteredSearchPath);
+            // Its dependencies first, by full path, in import order: Windows can't search a folder whose name has
+            // a ';' (a Steam library can be called anything), and a DLL that's already loaded is found by name.
+            foreach (string dependency in new[] { "ggml-base.dll", "ggml.dll", "whisper.dll" })
+            {
+                string path = Path.Combine(Folder(variant), dependency);
+                if (File.Exists(path)) LoadLibraryExW(path, IntPtr.Zero, LoadSearchDllDirAndDefaults);
+            }
+            IntPtr module = LoadLibraryExW(dll, IntPtr.Zero, LoadSearchDllDirAndDefaults);
             if (module == IntPtr.Zero)
             {
                 Plugin.Log.LogWarning($"Whisper: could not load {dll} (error {Marshal.GetLastWin32Error()}; the Microsoft Visual C++ 2015-2022 runtime may be missing).");

@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <string>
 #include <cstring>
+#include <mutex>
 #include "whisper.h"
 #include "ggml-backend.h"
 
@@ -11,38 +12,56 @@
 
 typedef void (*cmw_log_fn)(int level, const char * text);
 static cmw_log_fn g_log = nullptr;
-static bool g_backends_loaded = false;
+static std::once_flag g_backends_loaded;
 
 static void forward_log(enum ggml_log_level level, const char * text, void *) {
     if (g_log && text) g_log((int) level, text);
 }
 
-// Folder of this DLL: ggml loads its backends (CPU variants, Vulkan, CUDA) from there.
-static std::string own_folder() {
+static std::string to_utf8(const std::wstring & w) {
+    if (w.empty()) return std::string();
+    int n = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int) w.size(), nullptr, 0, nullptr, nullptr);
+    std::string s(n, 0);
+    WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int) w.size(), &s[0], n, nullptr, nullptr);
+    return s;
+}
+
+// Folder of this DLL: ggml loads its backends (CPU variants, Vulkan, CUDA) from there. Wide characters, so a
+// game folder with accents (or any non-ANSI name) still works.
+static std::wstring own_folder() {
     HMODULE self = nullptr;
-    GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                       (LPCSTR) &own_folder, &self);
-    char path[MAX_PATH * 4] = {};
-    GetModuleFileNameA(self, path, sizeof(path));
-    std::string s(path);
-    size_t slash = s.find_last_of("\\/");
-    return slash == std::string::npos ? std::string(".") : s.substr(0, slash);
+    GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                       (LPCWSTR) &own_folder, &self);
+    std::wstring s(32768, 0); // long paths too; on the heap (game threads may have small stacks)
+    s.resize(GetModuleFileNameW(self, &s[0], (DWORD) s.size()));
+    size_t slash = s.find_last_of(L"\\/");
+    return slash == std::wstring::npos ? std::wstring(L".") : s.substr(0, slash);
 }
 
 // GPU runtimes a backend imports (e.g. CUDA's cudart/cublas, when the optional CUDA files were installed next
 // to this DLL). The game's .exe lives elsewhere, so Windows wouldn't find them; loading them first by full
-// path lets the backend's imports resolve, without changing the process's DLL search path.
-static void preload_runtimes(const std::string & folder) {
-    const char * patterns[] = { "cudart64_*.dll", "cublasLt64_*.dll", "cublas64_*.dll", "nvrtc-builtins64_*.dll", "nvrtc64_*.dll" };
-    for (const char * pattern : patterns) {
-        WIN32_FIND_DATAA found;
-        HANDLE h = FindFirstFileA((folder + "\\" + pattern).c_str(), &found);
+// path lets the backend's imports resolve, without changing the process's DLL search path (and without
+// LOAD_WITH_ALTERED_SEARCH_PATH, which breaks when the folder name has a ";").
+static void preload_runtimes(const std::wstring & folder) {
+    const wchar_t * patterns[] = { L"cudart64_*.dll", L"cublasLt64_*.dll", L"cublas64_*.dll", L"nvrtc-builtins64_*.dll", L"nvrtc64_*.dll" };
+    for (const wchar_t * pattern : patterns) {
+        WIN32_FIND_DATAW found;
+        HANDLE h = FindFirstFileW((folder + L"\\" + pattern).c_str(), &found);
         if (h == INVALID_HANDLE_VALUE) continue;
         do {
-            LoadLibraryExA((folder + "\\" + found.cFileName).c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
-        } while (FindNextFileA(h, &found));
+            LoadLibraryExW((folder + L"\\" + found.cFileName).c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        } while (FindNextFileW(h, &found));
         FindClose(h);
     }
+}
+
+// Once per process, whichever call comes first (model loading and speech detection start on different threads).
+static void load_backends() {
+    std::call_once(g_backends_loaded, [] {
+        std::wstring folder = own_folder();
+        preload_runtimes(folder);
+        ggml_backend_load_all_from_path(to_utf8(folder).c_str()); // ggml reads the path as UTF-8
+    });
 }
 
 CMW_API int cmw_interface_version() { return 1; }
@@ -56,12 +75,7 @@ CMW_API const char * cmw_system_info() { return whisper_print_system_info(); }
 
 // Loads a model; use_gpu = 0 forces the CPU. Returns null on failure.
 CMW_API void * cmw_init(const char * model_path, int use_gpu) {
-    if (!g_backends_loaded) {
-        std::string folder = own_folder();
-        preload_runtimes(folder);
-        ggml_backend_load_all_from_path(folder.c_str());
-        g_backends_loaded = true;
-    }
+    load_backends();
     whisper_context_params cparams = whisper_context_default_params();
     cparams.use_gpu = use_gpu != 0;
     return whisper_init_from_file_with_params(model_path, cparams);
@@ -70,12 +84,7 @@ CMW_API void * cmw_init(const char * model_path, int use_gpu) {
 // The GPU whisper.cpp will use (the first one ggml found), written to name; returns its free memory in MB,
 // or -1 if there is no usable GPU (recognition then runs on the CPU).
 CMW_API int cmw_gpu(char * name, int name_size) {
-    if (!g_backends_loaded) {
-        std::string folder = own_folder();
-        preload_runtimes(folder);
-        ggml_backend_load_all_from_path(folder.c_str());
-        g_backends_loaded = true;
-    }
+    load_backends();
     if (name && name_size > 0) name[0] = 0;
     for (size_t i = 0; i < ggml_backend_dev_count(); i++) {
         ggml_backend_dev_t dev = ggml_backend_dev_get(i);
@@ -93,12 +102,7 @@ CMW_API int cmw_gpu(char * name, int name_size) {
 
 // Loads a Silero VAD model (ggml); it runs on the CPU, next to recognition. Null on failure.
 CMW_API void * cmw_vad_init(const char * model_path) {
-    if (!g_backends_loaded) {
-        std::string folder = own_folder();
-        preload_runtimes(folder);
-        ggml_backend_load_all_from_path(folder.c_str());
-        g_backends_loaded = true;
-    }
+    load_backends();
     whisper_vad_context_params p = whisper_vad_default_context_params();
     p.n_threads = 1;
     p.use_gpu = false;

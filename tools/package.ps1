@@ -2,9 +2,9 @@
 #   CryptmasterWhisper-Setup-<version>.exe  installer (mod, Vulkan whisper.cpp, BepInEx; optional downloads)
 #   CryptmasterWhisper-<version>.zip        manual install: unzip into the game folder (BepInEx 5 needed)
 # Only redistributable files go in (docs\LICENSING.md). Run tools\build-whisper-vulkan.ps1 first.
-# Usage: powershell -File tools\package.ps1 [-Version 0.9.0] [-NativeDir <build-whisper-vulkan output>]
+# Usage: powershell -File tools\package.ps1 [-Version 0.9.1] [-NativeDir <build-whisper-vulkan output>]
 # Keep this script ASCII-only (Windows PowerShell 5.1 reads BOM-less scripts as ANSI).
-param([string]$Version = '0.9.0', [string]$NativeDir = "$env:TEMP\cryptmaster-whisper-build\out")
+param([string]$Version = '0.9.1', [string]$NativeDir = "$env:TEMP\cryptmaster-whisper-build\out")
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $root = Split-Path -Parent $PSScriptRoot
@@ -29,9 +29,11 @@ New-Item -ItemType Directory -Force "$stage\bench" | Out-Null
 Copy-Item "$NativeDir\cmwbench.exe" "$stage\bench"
 Set-Content "$plugin\models\README.txt" 'Optional extra Whisper models (ggml .bin files). Select them in BepInEx\config\cryptmaster.whisper.cfg (Model section).' -Encoding ASCII
 
-# BepInEx 5, pinned.
+# BepInEx 5, pinned by URL and SHA-256 (it ends up loaded by every game launch).
 $bepinex = 'https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.2/BepInEx_win_x64_5.4.23.2.zip'
+$bepinexSha = 'F752CE4E838F4C305B9DA1404B6745F2CFF23B8BFD494F79F0C84D0A01F59B46'
 Invoke-WebRequest $bepinex -OutFile "$stage\bepinex\BepInEx.zip" -UseBasicParsing
+if ((Get-FileHash "$stage\bepinex\BepInEx.zip" -Algorithm SHA256).Hash -ne $bepinexSha) { throw 'BepInEx download does not match its pinned SHA-256.' }
 
 # Manual-install zip: the game-folder layout.
 $zipRoot = Join-Path $dist 'zip'
