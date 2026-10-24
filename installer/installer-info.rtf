@@ -1,0 +1,35 @@
+{\rtf1\ansi\ansicpg1252\deff0\uc1{\fonttbl{\f0\fswiss Segoe UI;}}\viewkind4\f0\fs17 HOW THIS MOD WAS MADE\par
+This mod was entirely vibecoded: it was written by an "AI" (a large language model - LLM). So it may contain artifacts of the model's coding training material, its behaviour, design flaws and biases.\par
+The model was explicitly instructed, as a hard rule, not to generate any imitation of human content other than structured code, text, small pieces of replicated interface and machine translation; the replicated interface and the translations were curated, reviewed and adjusted by the human behind the mod.\par
+{\b In practice: no AI-generated voices were made or used at any point in developing this mod.}\par
+\par
+Vanilla Cryptmaster uses Windows Speech Recognition, which stays the default: Whisper is opt-in. Switch it on in the game's Options > Voice, and switch back to Windows Speech Recognition at any time if Whisper misbehaves.\par
+\par
+WHAT WHISPER IS\par
+Whisper is a speech recognition model released as open source by OpenAI. Here it runs entirely on your computer: no online speech service, no account, and nothing is sent anywhere. The mod runs it through whisper.cpp, an open-source engine that uses your graphics card (any brand, through Vulkan) or your processor.\par
+\par
+HOW IT WORKS IN THE GAME\par
+When you press the Ear button (Ctrl), the mod records your microphone until you stop speaking (or, in push-to-talk mode, while you hold the button), gives that short clip to Whisper, and hands the words it hears to the game at exactly the point where Windows Speech Recognition would. Everything after that is the game's own: the same words, the same typing, the same commands.\par
+\par
+HOW IT MIGHT HELP\par
+Whether it does depends on your voice, microphone, language and PC, so these are possibilities, not promises. It doesn't need Windows' online speech recognition to be switched on. It follows the game's language, including languages Windows may not recognise on your PC. Push to talk keeps background noise from setting it off. And it's told which skill words your party currently knows.\par
+\par
+WHY IT WAS PROBABLY LEFT OUT\par
+The game already ships Whisper (a 2023 build and three small models), but switches it off at start-up and never uses it. The developers never said why, so this is our best guess: with the settings it came with, each recognition took close to a second, and the small models struggled with the game's invented words, while Windows Speech Recognition answered almost instantly.\par
+\par
+WHAT THIS MOD DOES DIFFERENTLY\par
+- Sizes Whisper's audio window to the word you said, instead of a fixed 30 seconds: roughly ten times faster than the settings the game shipped with.\par
+- Uses a current whisper.cpp that can run on the graphics card, which makes larger, more accurate Whisper models practical.\par
+- Tests your PC during this installation, to recommend a model for your graphics card and one for your processor.\par
+- Detects when you start and stop speaking, shows provisional results while you speak, and filters out phrases Whisper tends to "hear" in silence.\par
+\par
+WHAT THIS INSTALLS\par
+- The mod, into BepInEx\\plugins\\CryptmasterWhisper.\par
+- BepInEx 5 (the mod loader), if it isn't installed yet.\par
+- whisper.cpp built with Vulkan (works on AMD, Intel and NVIDIA graphics cards, and on the processor without one).\par
+- Optionally, larger Whisper models, downloaded from their official source.\par
+- Optionally, on PCs with an NVIDIA graphics card, CUDA, downloaded from its official source.\par
+- The Microsoft Visual C++ runtime, downloaded from Microsoft, only if it's missing.\par
+\par
+Downloads are checked against fixed SHA-256 hashes. Anything already in the mod's folder is left alone unless you choose otherwise. Uninstalling removes only what this installer added; BepInEx and your settings stay, since other mods may use them.\par
+}

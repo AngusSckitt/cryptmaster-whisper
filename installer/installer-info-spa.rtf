@@ -1,0 +1,35 @@
+{\rtf1\ansi\ansicpg1252\deff0\uc1{\fonttbl{\f0\fswiss Segoe UI;}}\viewkind4\f0\fs17 C\u211?MO SE HIZO ESTE MOD\par
+Este mod se hizo por completo con "vibecoding": lo escribi\u243? una "IA" (un modelo de lenguaje grande - LLM). Por eso puede contener artefactos del material de entrenamiento de programaci\u243?n del modelo, de su comportamiento, de fallos de dise\u241?o y de sesgos.\par
+Al modelo se le indic\u243? expl\u237?citamente, como regla estricta, que no generara ninguna imitaci\u243?n de contenido humano aparte de c\u243?digo estructurado, texto, peque\u241?as piezas de interfaz replicada y traducci\u243?n autom\u225?tica; la interfaz replicada y las traducciones fueron seleccionadas, revisadas y ajustadas por la persona detr\u225?s del mod.\par
+{\b En la pr\u225?ctica: no se cre\u243? ni se us\u243? ninguna voz generada por IA en ning\u250?n momento del desarrollo de este mod.}\par
+\par
+Cryptmaster original usa el Reconocimiento de voz de Windows, que sigue siendo la opci\u243?n predeterminada: Whisper es opcional. Act\u237?valo en Opciones > Voz dentro del juego, y vuelve al Reconocimiento de voz de Windows cuando quieras si Whisper no se porta bien.\par
+\par
+QU\u201? ES WHISPER\par
+Whisper es un modelo de reconocimiento de voz publicado como c\u243?digo abierto por OpenAI. Aqu\u237? funciona por completo en tu ordenador: sin servicio de voz en l\u237?nea, sin cuenta y sin enviar nada a ning\u250?n sitio. El mod lo ejecuta con whisper.cpp, un motor de c\u243?digo abierto que usa tu tarjeta gr\u225?fica (de cualquier marca, mediante Vulkan) o tu procesador.\par
+\par
+C\u211?MO FUNCIONA EN EL JUEGO\par
+Cuando pulsas el bot\u243?n de la oreja (Ctrl), el mod graba el micr\u243?fono hasta que dejas de hablar (o, en el modo pulsar para hablar, mientras mantienes el bot\u243?n), le pasa ese fragmento a Whisper y entrega al juego las palabras que oye, justo en el punto donde lo har\u237?a el Reconocimiento de voz de Windows. Todo lo dem\u225?s es cosa del juego: las mismas palabras, la misma escritura, los mismos comandos.\par
+\par
+EN QU\u201? PODR\u205?A AYUDAR\par
+Depende de tu voz, tu micr\u243?fono, tu idioma y tu ordenador, as\u237? que son posibilidades, no promesas. No necesita que el reconocimiento de voz en l\u237?nea de Windows est\u233? activado. Sigue el idioma del juego, incluidos idiomas que Windows quiz\u225? no reconozca en tu ordenador. Pulsar para hablar evita que el ruido de fondo lo active. Y sabe qu\u233? palabras de habilidades conoce tu grupo en cada momento.\par
+\par
+POR QU\u201? SEGURAMENTE SE QUED\u211? FUERA\par
+El juego ya incluye Whisper (una versi\u243?n de 2023 y tres modelos peque\u241?os), pero lo desactiva al arrancar y nunca lo usa. Los desarrolladores no han dicho por qu\u233?, as\u237? que esto es lo que suponemos: con los ajustes con los que ven\u237?a, cada reconocimiento tardaba casi un segundo y los modelos peque\u241?os ten\u237?an problemas con las palabras inventadas del juego, mientras que el Reconocimiento de voz de Windows respond\u237?a casi al instante.\par
+\par
+QU\u201? HACE DISTINTO ESTE MOD\par
+- Ajusta la ventana de audio de Whisper a la palabra que has dicho, en lugar de 30 segundos fijos: m\u225?s o menos diez veces m\u225?s r\u225?pido que con los ajustes que tra\u237?a el juego.\par
+- Usa un whisper.cpp actual que puede funcionar en la tarjeta gr\u225?fica, lo que hace pr\u225?cticos modelos de Whisper m\u225?s grandes y precisos.\par
+- Prueba tu ordenador durante esta instalaci\u243?n para recomendar un modelo para tu tarjeta gr\u225?fica y otro para tu procesador.\par
+- Detecta cu\u225?ndo empiezas y terminas de hablar, muestra resultados provisionales mientras hablas y descarta frases que Whisper suele "o\u237?r" en el silencio.\par
+\par
+QU\u201? SE INSTALA\par
+- El mod, en BepInEx\\plugins\\CryptmasterWhisper.\par
+- BepInEx 5 (el cargador de mods), si a\u250?n no est\u225? instalado.\par
+- whisper.cpp compilado con Vulkan (funciona con tarjetas gr\u225?ficas AMD, Intel y NVIDIA, y en el procesador si no hay ninguna).\par
+- Opcionalmente, modelos de Whisper m\u225?s grandes, descargados de su fuente oficial.\par
+- Opcionalmente, en ordenadores con tarjeta gr\u225?fica NVIDIA, CUDA, descargado de su fuente oficial.\par
+- El entorno de ejecuci\u243?n de Microsoft Visual C++, descargado de Microsoft, solo si falta.\par
+\par
+Las descargas se comprueban con hashes SHA-256 fijos. Todo lo que ya est\u233? en la carpeta del mod se deja como est\u225?, salvo que elijas otra cosa. Al desinstalar solo se elimina lo que a\u241?adi\u243? este instalador; BepInEx y tus ajustes se quedan, porque otros mods pueden usarlos.\par
+}

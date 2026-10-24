@@ -1,5 +1,42 @@
 # Cryptmaster - Whisper
 
+## How this mod was made · Cómo se hizo · Como foi feito
+
+**English**
+
+This mod was entirely vibecoded: it was written by an "AI" (a large language model - LLM). So it may
+contain artifacts of the model's coding training material, its behaviour, design flaws and biases.
+
+The model was explicitly instructed, as a hard rule, not to generate any imitation of human content other than
+structured code, text, small pieces of replicated interface and machine translation; the replicated
+interface and the translations were curated, reviewed and adjusted by the human behind the mod.
+
+### In practice: no AI-generated voices were made or used at any point in developing this mod.
+**Español**
+
+Este mod se hizo por completo con "vibecoding": lo escribió una "IA" (un modelo de lenguaje grande - LLM).
+Por eso puede contener artefactos del material de entrenamiento de programación del modelo, de su
+comportamiento, de fallos de diseño y de sesgos.
+
+Al modelo se le indicó explícitamente, como regla estricta, que no generara ninguna imitación de contenido
+humano aparte de código estructurado, texto, pequeñas piezas de interfaz replicada y traducción automática;
+la interfaz replicada y las traducciones fueron seleccionadas, revisadas y ajustadas por la persona detrás
+del mod.
+
+### En la práctica: no se creó ni se usó ninguna voz generada por IA en ningún momento del desarrollo de este mod.
+**Português**
+
+Este mod foi inteiramente "vibecodado": quem o escreveu foi uma "IA" (um modelo de linguagem grande - LLM).
+Por isso, ele pode conter artefatos do material de treinamento de programação do modelo, do comportamento
+dele, de falhas de design e de vieses.
+
+O modelo foi instruído explicitamente, como regra rígida, a não gerar nenhuma imitação de conteúdo humano
+além de código estruturado, texto, pequenos trechos de interface replicada e tradução automática; a interface
+replicada e as traduções foram selecionadas, revisadas e ajustadas pelo humano por trás do mod.
+
+### Na prática: nenhuma voz gerada por IA foi feita ou usada em nenhum momento do desenvolvimento deste mod.
+## What it is
+
 A BepInEx 5 mod that lets Cryptmaster's voice input use Whisper, a speech recogniser that ships with the
 game but was never used, as an alternative to Windows Speech Recognition. Windows Speech Recognition stays
 the default.

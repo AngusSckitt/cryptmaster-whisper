@@ -48,13 +48,14 @@ Compression=lzma2
 SolidCompression=yes
 LicenseFile=..\LICENSE
 UninstallDisplayName=Cryptmaster Whisper
+; Info pages: installer-info*.txt are the sources; tools\info-to-rtf.ps1 makes the .rtf shown (bold lines).
 ; Inno's own detailed log (copied into the mod's logs folder at the end, next to the event log).
 SetupLogging=yes
 
 [Languages]
-Name: "english"; MessagesFile: "compiler:Default.isl"; InfoBeforeFile: "installer-info.txt"
-Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"; InfoBeforeFile: "installer-info-spa.txt"
-Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"; InfoBeforeFile: "installer-info-por.txt"
+Name: "english"; MessagesFile: "compiler:Default.isl"; InfoBeforeFile: "installer-info.rtf"
+Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"; InfoBeforeFile: "installer-info-spa.rtf"
+Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"; InfoBeforeFile: "installer-info-por.rtf"
 
 #include "messages.iss"
 

@@ -43,7 +43,8 @@ if (Test-Path $zip) { Remove-Item $zip }
 Compress-Archive "$zipRoot\*" $zip
 Remove-Item -Recurse -Force $zipRoot
 
-# Installer.
+# Installer (its info pages are made from the .txt sources first).
+& "$PSScriptRoot\info-to-rtf.ps1"
 $iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw 'Inno Setup 6 not found (winget install JRSoftware.InnoSetup).' }
 & $iscc /Q "/DAppVersion=$Version" "$root\installer\CryptmasterWhisper.iss"
