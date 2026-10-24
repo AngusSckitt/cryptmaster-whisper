@@ -13,7 +13,7 @@ interface and the translations were curated, reviewed and adjusted by the human 
 
 ### In practice: no AI-generated voices were made or used at any point in developing this mod.
 
-The accuracy tests used recordings of real people who agreed to it: Google's Speech Commands dataset (CC BY 4.0). Special thanks to the man meowing in its background-noise recordings, who made the hardest tests unforgettable.
+The accuracy tests used recordings of real people who agreed to it: Google's Speech Commands dataset (CC BY 4.0). Kudos to the Meowing Dude. If you know, you know.
 
 There's no way to know whether the model reproduced a piece of code from its training material. If you recognise code here that should be credited or that conflicts with the GPL-3 licence, or you find any other problem, please open an issue: https://github.com/AngusSckitt/cryptmaster-whisper/issues
 
@@ -29,7 +29,7 @@ la interfaz replicada y las traducciones fueron seleccionadas, revisadas y ajust
 
 ### En la práctica: no se creó ni se usó ninguna voz generada por IA en ningún momento del desarrollo de este mod.
 
-Las pruebas de precisión usaron grabaciones de personas reales que dieron su consentimiento: el conjunto de datos Speech Commands de Google (CC BY 4.0). Mención especial al señor que maúlla en sus grabaciones de ruido de fondo, que hizo inolvidables las pruebas más difíciles.
+Las pruebas de precisión usaron grabaciones de personas reales que dieron su consentimiento: el conjunto de datos Speech Commands de Google (CC BY 4.0). Un saludo al Tipo que Maúlla. Quien sabe, sabe.
 
 No hay forma de saber si el modelo reprodujo algún fragmento de código de su material de entrenamiento. Si reconoces aquí código que debería tener crédito o que entra en conflicto con la licencia GPL-3, o encuentras cualquier otro problema, abre una incidencia (issue): https://github.com/AngusSckitt/cryptmaster-whisper/issues
 
@@ -45,7 +45,7 @@ replicada e as traduções foram selecionadas, revisadas e ajustadas pelo humano
 
 ### Na prática: nenhuma voz gerada por IA foi feita ou usada em nenhum momento do desenvolvimento deste mod.
 
-Os testes de precisão usaram gravações de pessoas reais que consentiram: o conjunto de dados Speech Commands do Google (CC BY 4.0). Agradecimento especial ao cara que mia nas gravações de ruído de fundo, que tornou inesquecíveis os testes mais difíceis.
+Os testes de precisão usaram gravações de pessoas reais que consentiram: o conjunto de dados Speech Commands do Google (CC BY 4.0). Salve pro Cara que Mia. Quem sabe, sabe.
 
 Não há como saber se o modelo reproduziu algum trecho de código do material de treinamento. Se você reconhecer aqui um código que deveria ser creditado ou que conflita com a licença GPL-3, ou encontrar qualquer outro problema, abra uma issue: https://github.com/AngusSckitt/cryptmaster-whisper/issues
 
