@@ -104,3 +104,16 @@ Whisper mode is presented as an alternative, and as an attempt to implement a fe
 shipped but never used. It never promises better performance than Windows Speech Recognition.
 
 Licence: GPL-3.0 (see LICENSE).
+
+## Support · Apoyo · Apoio
+
+> ☕ **Enjoying it?** It's free and always will be. If you'd like to say thanks with something more than
+> words, you can [buy me a coffee](https://buymeacoffee.com/angussckitt).
+> **¿Te gusta?** Es gratis y siempre lo será. Si quieres dar las gracias con algo más que palabras, puedes
+> [invitarme a un café](https://buymeacoffee.com/angussckitt).
+> **Curtiu?** É de graça e sempre vai ser. Se quiser agradecer com algo além de palavras, você pode
+> [me pagar um café](https://buymeacoffee.com/angussckitt).
+>
+> [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/angussckitt)
+>
+> **Binance Pay:** *coming soon · próximamente · em breve* <!-- TODO: Binance Pay ID / link -->
