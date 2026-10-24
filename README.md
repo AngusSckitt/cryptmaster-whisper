@@ -1,5 +1,9 @@
 # Cryptmaster - Whisper
 
+## Importante sobre o português
+
+O Whisper reconhece português, mas o próprio Cryptmaster não tem suporte a português: com o jogo em inglês ou espanhol, inclusos no original, o Whisper vai esperar comandos em inglês ou espanhol, porque segue o idioma do jogo. Para a experiência completa em português (textos, comandos digitados e reconhecimento de voz), instale também o outro mod, ["Cryptmaster - Localização PT-BR"](https://github.com/AngusSckitt/cryptmaster-localizacao-ptbr), também "criado" por AngusSckitt, e escolha Português em Opções > Jogo > Idioma.
+
 ## How this mod was made · Cómo se hizo · Como foi feito
 
 **English**
